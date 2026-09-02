@@ -304,28 +304,28 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
-  <!-- Papa Portal — Professional -->
+  <!-- Family Portal — Professional -->
   <div class="card" style="margin-bottom:14px;border:1px solid #c8e6c9;background:linear-gradient(180deg,#f0faf9 0%, #fff 100%)">
     <div class="card-head">
-      <h3>👨‍👧 Papa Portal — Read-Only Access</h3>
+      <h3>👨‍👧 Family Portal — Read-Only Access</h3>
       <p>Secure view-only access for your father</p>
     </div>
     <div class="card-pad">
       <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end">
         <div class="field" style="margin:0">
-          <label>Set View PIN for Papa</label>
+          <label>Set View PIN for Family</label>
           <input type="password" id="papaPinSet" placeholder="Create a secure PIN" maxlength="20" autocomplete="off">
         </div>
         <button class="btn-primary" style="padding:11px 18px;white-space:nowrap" onclick="savePapaPin()">Save PIN</button>
       </div>
       <div class="hint" id="papaPinHint" style="margin-top:8px"></div>
       <div style="margin-top:10px;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <span style="font-size:12px;font-weight:700">Papa Portal Link:</span>
+        <span style="font-size:12px;font-weight:700">Family Portal Link:</span>
         <code id="papaLink" style="font-size:11px;background:#fff;border:1px solid var(--border);padding:6px 10px;border-radius:8px;flex:1;min-width:180px;overflow:auto;white-space:nowrap">— please sign in —</code>
         <button class="btn-ghost" style="padding:6px 12px;font-size:11px" onclick="copyPapaLink()">Copy Link</button>
         <a id="papaOpen" href="papa.html" target="_blank" class="btn-ghost" style="padding:6px 12px;font-size:11px;text-decoration:none;color:inherit;display:inline-block">Open Portal</a>
       </div>
-      <div class="hint" style="margin-top:8px">Share this link along with your <b>username</b> and <b>PIN</b> with your father. He will have read-only access to view your expenses.</div>
+      <div class="hint" style="margin-top:8px">Share this link along with your <b>username</b> and <b>PIN</b> with your family. They will have read-only access to view your expenses.</div>
     </div>
   </div>
 
@@ -900,7 +900,7 @@ const fmtDate = iso => {
 };
 const monthKey = d => d.slice(0,7);
 
-// ===== PAPA PIN (local + cloud) =====
+// ===== FAMILY PIN (local + cloud) =====
 const PAPA_PIN_KEY = 'et_papa_pins_v1';
 function getPapaPins(){ try{ return JSON.parse(localStorage.getItem(PAPA_PIN_KEY)||'{}'); }catch{ return {}; } }
 function setPapaPins(p){ localStorage.setItem(PAPA_PIN_KEY, JSON.stringify(p)); }
@@ -914,8 +914,8 @@ function initPapaPinUI(){
   const base = location.origin + location.pathname.replace(/index\.html$/,'') + 'papa.html';
   if(linkEl) linkEl.textContent = base;
   if(openEl) openEl.href = 'papa.html';
-  if(!u){ if(hint) hint.textContent='Please sign in to set up Papa Portal access'; return; }
-  if(hint) hint.textContent = has ? '✓ PIN configured — share your username and PIN with your father to grant view access' : 'No PIN configured — create one to enable Papa Portal access';
+  if(!u){ if(hint) hint.textContent='Please sign in to set up Family Portal access'; return; }
+  if(hint) hint.textContent = has ? '✓ PIN configured — share your username and PIN with your family to grant view access' : 'No PIN configured — create one to enable Family Portal access';
   // Try to sync PIN from cloud if not found locally
   if(!has && supabaseClient){
     supabaseClient.from('papa_pins').select('pin_hash').eq('username', u).single().then(({data, error})=>{
