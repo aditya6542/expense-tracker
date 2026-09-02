@@ -1187,7 +1187,7 @@ function renderCharts(){
   if(ctx2) dailyChart = new Chart(ctx2, {
     type:'bar',
     data:{labels: daily.map((_,i)=> String(i+1)), datasets:[{label:'Spent', data:daily, backgroundColor:'#0071e3', borderRadius:6, barPercentage:0.7}]},
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=> ' '+fmt(ctx.parsed.y)}}}, scales:{x:{grid:{display:false}, ticks:{font:{size:10}, maxRotation:0, autoSkip:true, maxTicksLimit:15}, title:{display:true,text:'Day of month', font:{size:11, weight:600}}}, y:{grid:{color:'#f0f0f2'}, ticks:{callback:v=> '₹'+v, font:{size:10}}, beginAtZero:true}}
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=> ' '+fmt(ctx.parsed.y)}}}, scales:{x:{grid:{display:false}, ticks:{font:{size:10}, maxRotation:0, autoSkip:true, maxTicksLimit:15}, title:{display:true,text:'Day of month', font:{size:11, weight:600}}}, y:{grid:{color:'#f0f0f2'}, ticks:{callback:v=> '₹'+v, font:{size:10}}, beginAtZero:true}}}
   });
 }
 
