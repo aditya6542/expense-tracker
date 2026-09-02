@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Expense Tracker — Mac</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f5f7;
+  --card:#ffffff;
+  --card2:#fbfbfc;
+  --border:#e8e8ed;
+  --text:#1d1d1f;
+  --muted:#86868b;
+  --muted2:#a1a1a6;
+  --accent:#0071e3;
+  --accent2:#0077ed;
+  --green:#1d9d5a;
+  --red:#ff3b30;
+  --orange:#ff9500;
+  --radius:18px;
+  --shadow:0 4px 24px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;line-height:1.5}
+button{font-family:inherit}
+input,select,textarea{font-family:inherit}
+.titlebar{height:52px;background:rgba(255,255,255,0.85);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px;position:sticky;top:0;z-index:20}
+.dots{display:flex;gap:8px}
+.dot{width:12px;height:12px;border-radius:50%}
+.dot.r{background:#ff5f56;border:1px solid #e0443e}
+.dot.y{background:#ffbd2e;border:1px solid #dea123}
+.dot.g{background:#27c93f;border:1px solid #1aab29}
+.titlebar h1{font-size:15px;font-weight:700;letter-spacing:-0.02em}
+.titlebar span{font-size:12px;color:var(--muted);font-weight:500}
+.spacer{flex:1}
+.btn-primary{background:var(--accent);color:#fff;border:none;padding:8px 16px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer}
+.btn-primary:hover{background:var(--accent2)}
+.btn-ghost{background:var(--card);border:1px solid var(--border);padding:8px 14px;border-radius:20px;font-size:13px;font-weight:600;cursor:pointer}
+.wrap{max-width:1180px;margin:0 auto;padding:22px 20px 40px}
+.top-grid{display:grid;grid-template-columns:1.35fr 0.85fr;gap:16px;margin-bottom:16px}
+@media(max-width:900px){.top-grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card-pad{padding:18px}
+.card-head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 0 18px}
+.card-head h3{font-size:13px;font-weight:700;letter-spacing:-0.01em}
+.card-head p{font-size:11px;color:var(--muted);font-weight:500}
+.balance-hero{background:linear-gradient(135deg,#0a0a0a 0%,#1d1d1f 55%,#2c2c2e 100%);color:#fff;border-radius:var(--radius);padding:22px;position:relative;overflow:hidden}
+.balance-hero::after{content:"";position:absolute;right:-40px;top:-40px;width:180px;height:180px;background:radial-gradient(circle at center, rgba(0,113,227,0.35), transparent 70%);pointer-events:none}
+.bh-label{font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:rgba(255,255,255,0.6);font-weight:600}
+.bh-amount{font-size:36px;font-weight:800;letter-spacing:-0.04em;margin:6px 0 2px}
+.bh-sub{font-size:12px;color:rgba(255,255,255,0.55)}
+.bh-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:16px}
+@media(max-width:520px){.bh-grid{grid-template-columns:1fr 1fr}}
+.bh-mini{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:12px;backdrop-filter:blur(10px)}
+.bh-mini label{font-size:10px;letter-spacing:0.07em;text-transform:uppercase;color:rgba(255,255,255,0.55);font-weight:600}
+.bh-mini div{font-size:15px;font-weight:700;margin-top:4px}
+.bh-mini small{font-size:11px;color:rgba(255,255,255,0.5)}
+.progress{height:6px;background:rgba(255,255,255,0.12);border-radius:999px;overflow:hidden;margin-top:14px}
+.progress i{display:block;height:100%;background:linear-gradient(90deg,#0071e3,#34c759);border-radius:999px;transition:width .4s}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+@media(max-width:900px){.stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:500px){.stats{grid-template-columns:1fr}}
+.stat{padding:16px}
+.stat label{font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted)}
+.stat .val{font-size:22px;font-weight:800;letter-spacing:-0.03em;margin-top:6px}
+.stat .hint{font-size:11px;color:var(--muted2);margin-top:2px}
+.stat .icon{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:16px;margin-bottom:10px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}}
+.field label{font-size:11px;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;color:var(--muted);display:block;margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;padding:11px 12px;border-radius:11px;border:1px solid var(--border);background:var(--card2);font-size:14px;font-weight:500;color:var(--text);outline:none;transition:.15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);background:#fff;box-shadow:0 0 0 4px rgba(0,113,227,0.1)}
+.field textarea{resize:none;min-height:44px}
+.pill-row{display:flex;gap:8px;flex-wrap:wrap}
+.pill{padding:7px 12px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--card2);cursor:pointer}
+.pill.active{background:var(--text);color:#fff;border-color:var(--text)}
+.cat-grid{display:flex;flex-wrap:wrap;gap:7px}
+.cat-chip{padding:7px 11px;border-radius:999px;font-size:12px;font-weight:600;border:1px solid var(--border);background:var(--card2);cursor:pointer;display:flex;align-items:center;gap:6px}
+.cat-chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border)}
+.toolbar input,.toolbar select{padding:9px 12px;border-radius:10px;border:1px solid var(--border);background:var(--card2);font-size:13px;font-weight:500;outline:none}
+.toolbar input:focus,.toolbar select:focus{border-color:var(--accent);background:#fff}
+.table-wrap{overflow:auto}
+table{width:100%;border-collapse:collapse;min-width:640px}
+th{text-align:left;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--card2);white-space:nowrap}
+td{padding:13px 16px;font-size:13px;border-bottom:1px solid #f0f0f2;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;font-size:11px;font-weight:700;border:1px solid var(--border);background:var(--card2);white-space:nowrap}
+.badge.online{background:#e8f5e9;border-color:#c8e6c9;color:#1b5e20}
+.badge.cash{background:#fff3e0;border-color:#ffe0b2;color:#e65100}
+.badge.card{background:#e3f2fd;border-color:#bbdefb;color:#0d47a1}
+.badge.upi{background:#f3e5f5;border-color:#e1bee7;color:#4a148c}
+.badge.father{background:#e0f2f1;border-color:#b2dfdb;color:#004d40}
+.amt{font-weight:800;letter-spacing:-0.02em}
+.row-actions{display:flex;gap:6px}
+.icon-btn{width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:var(--card);display:grid;place-items:center;cursor:pointer;font-size:13px}
+.icon-btn:hover{background:var(--card2)}
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+.empty div{font-size:32px;margin-bottom:10px}
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+@media(max-width:900px){.chart-grid{grid-template-columns:1fr}}
+.chart-box{height:260px;padding:10px 14px 14px}
+.chart-box canvas{max-height:220px}
+.month-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px 12px;box-shadow:var(--shadow)}
+.month-bar input[type="month"]{padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--card2);font-weight:600;font-size:13px}
+.month-bar input[type="number"]{padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--card2);font-weight:600;font-size:13px;width:150px}
+.hint{font-size:11px;color:var(--muted)}
+.foot{margin-top:18px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;color:var(--muted);font-size:11px}
+.income-card{border:1px dashed #b2dfdb;background:linear-gradient(180deg,#f0faf9 0%, #ffffff 100%)}
+</style>
+</head>
+<body>
+
+<div class="titlebar">
+  <div class="dots"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span></div>
+  <h1>Expense Tracker</h1>
+  <span>Mac • Offline • Private</span>
+  <div class="spacer"></div>
+  <button class="btn-ghost" onclick="exportCSV()">Export CSV</button>
+  <button class="btn-ghost" onclick="exportJSON()">Backup</button>
+  <button class="btn-primary" onclick="document.getElementById('amount').focus()">+ Add Expense</button>
+</div>
+
+<div class="wrap">
+
+  <div class="month-bar" style="margin-bottom:14px">
+    <span style="font-size:13px;font-weight:700">📅 Month</span>
+    <input type="month" id="monthPicker">
+    <span style="width:1px;height:22px;background:var(--border)"></span>
+    <span style="font-size:13px;font-weight:700">🏦 Starting Balance</span>
+    <input type="number" id="startingBalance" placeholder="e.g. 50000" inputmode="numeric">
+    <button class="btn-primary" style="padding:8px 14px" onclick="saveStartingBalance()">Save</button>
+    <span class="hint">Bank balance at start of month — Father's money adds to this.</span>
+  </div>
+
+  <div class="top-grid">
+    <div class="balance-hero">
+      <div class="bh-label">Available Balance</div>
+      <div class="bh-amount" id="heroBalance">₹ 0</div>
+      <div class="bh-sub" id="heroSub">Set starting balance to begin tracking</div>
+      <div class="bh-grid">
+        <div class="bh-mini">
+          <label>Starting</label>
+          <div id="heroStarting">₹ 0</div>
+          <small id="heroMonth">—</small>
+        </div>
+        <div class="bh-mini" style="background:rgba(52,199,89,0.15);border-color:rgba(52,199,89,0.25)">
+          <label style="color:#a8f0b8">Received — Father</label>
+          <div id="heroReceived" style="color:#7CFF9B">₹ 0</div>
+          <small id="heroReceivedCount">0 times</small>
+        </div>
+        <div class="bh-mini">
+          <label>Spent</label>
+          <div id="heroSpent">₹ 0</div>
+          <small id="heroCount">0 transactions</small>
+        </div>
+      </div>
+      <div class="progress"><i id="progressBar" style="width:0%"></i></div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:rgba(255,255,255,0.5)">
+        <span>0%</span><span id="progressLabel">0% used</span><span>100%</span>
+      </div>
+      <div class="hint" style="color:rgba(255,255,255,0.45);margin-top:8px;font-size:11px" id="heroAvailableHint">Available = Starting + Father − Spent</div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>➕ Add Expense</h3>
+        <p>Online is default</p>
+      </div>
+      <div class="card-pad">
+        <div class="form-grid">
+          <div class="field">
+            <label>Date</label>
+            <input type="date" id="date">
+          </div>
+          <div class="field">
+            <label>Amount (₹)</label>
+            <input type="number" id="amount" placeholder="0" inputmode="decimal" min="0" step="0.01">
+          </div>
+        </div>
+        <div class="field" style="margin-top:12px">
+          <label>Category</label>
+          <div class="cat-grid" id="catGrid"></div>
+        </div>
+        <div class="field" style="margin-top:12px">
+          <label>Payment Mode — default is Online</label>
+          <div class="pill-row" id="payRow">
+            <button class="pill active" data-pay="Online">🌐 Online</button>
+            <button class="pill" data-pay="UPI">📱 UPI</button>
+            <button class="pill" data-pay="Card">💳 Card</button>
+            <button class="pill" data-pay="Cash">💵 Cash</button>
+          </div>
+        </div>
+        <div class="field" style="margin-top:12px">
+          <label>Note <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted2)">— small note, optional</span></label>
+          <textarea id="note" placeholder="e.g. groceries, metro, dinner..."></textarea>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:14px">
+          <button class="btn-primary" style="flex:1;padding:12px" onclick="addExpense()" id="addBtn">Add Expense</button>
+          <button class="btn-ghost" style="padding:12px 16px" onclick="resetForm()">Clear</button>
+        </div>
+        <div class="hint" style="margin-top:8px;text-align:center">Press <b>Enter</b> after amount to add quickly</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Father Money In -->
+  <div class="card income-card" style="margin-bottom:16px">
+    <div class="card-head">
+      <h3>💚 Money from Father</h3>
+      <p>Father only gives money — it adds to your balance</p>
+    </div>
+    <div class="card-pad">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1.4fr auto;gap:12px;align-items:end">
+        <div class="field">
+          <label>Date</label>
+          <input type="date" id="incomeDate">
+        </div>
+        <div class="field">
+          <label>Amount (₹)</label>
+          <input type="number" id="incomeAmount" placeholder="0" inputmode="decimal" min="0" step="0.01">
+        </div>
+        <div class="field">
+          <label>Note <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted2)">optional</span></label>
+          <input type="text" id="incomeNote" placeholder="e.g. monthly allowance">
+        </div>
+        <button class="btn-primary" style="padding:11px 18px;white-space:nowrap" onclick="addIncome()" id="incomeBtn">+ Add Money</button>
+      </div>
+      <div class="hint" style="margin-top:8px">This increases your available balance. Payment is tracked as <b>Father</b>.</div>
+
+      <!-- Income list -->
+      <div id="incomeListWrap" style="margin-top:14px"></div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="card stat">
+      <div class="icon" style="background:#e8f0fe;color:#1a73e8">💰</div>
+      <label>Remaining</label>
+      <div class="val" id="statRemaining">₹ 0</div>
+      <div class="hint" id="statRemainingHint">—</div>
+    </div>
+    <div class="card stat">
+      <div class="icon" style="background:#e6f4ea;color:#137333">💚</div>
+      <label>Received — Father</label>
+      <div class="val" id="statReceived">₹ 0</div>
+      <div class="hint" id="statReceivedHint">this month</div>
+    </div>
+    <div class="card stat">
+      <div class="icon" style="background:#fce8e6;color:#d93025">📉</div>
+      <label>Total Spent</label>
+      <div class="val" id="statSpent">₹ 0</div>
+      <div class="hint" id="statSpentHint">this month</div>
+    </div>
+    <div class="card stat">
+      <div class="icon" style="background:#fef7e0;color:#e37400">🧾</div>
+      <label>Transactions</label>
+      <div class="val" id="statCount">0</div>
+      <div class="hint" id="statCountHint">expenses this month</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="card">
+      <div class="card-head"><h3>By Category</h3><p>where money goes</p></div>
+      <div class="chart-box"><canvas id="catChart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><h3>Daily Spending</h3><p>this month</p></div>
+      <div class="chart-box"><canvas id="dailyChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-head"><h3>Category Breakdown</h3><p id="breakdownSub">—</p></div>
+    <div id="breakdown" style="padding:12px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="🔍 Search note, category, amount..." style="flex:1;min-width:180px" oninput="renderTable()">
+      <select id="filterCat" onchange="renderTable()"><option value="">All categories</option></select>
+      <select id="filterPay" onchange="renderTable()">
+        <option value="">All payments</option>
+        <option>Online</option><option>UPI</option><option>Card</option><option>Cash</option>
+      </select>
+      <select id="sortBy" onchange="renderTable()">
+        <option value="date_desc">Newest first</option>
+        <option value="date_asc">Oldest first</option>
+        <option value="amount_desc">Amount high → low</option>
+        <option value="amount_asc">Amount low → high</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Category</th>
+            <th>Amount</th>
+            <th>Payment</th>
+            <th>Note</th>
+            <th>Balance After</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div id="empty" class="empty" style="display:none">
+      <div>🪴</div>
+      <div style="font-weight:700;color:var(--text)">No expenses yet</div>
+      <div style="font-size:12px;margin-top:4px">Add your first expense above — it will appear here and update your balance.</div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <span>🔒 Everything is stored locally on your Mac (offline). No data leaves your device.</span>
+    <span style="display:flex;gap:8px">
+      <button class="btn-ghost" style="padding:6px 10px;font-size:11px" onclick="importJSON()">Import Backup</button>
+      <button class="btn-ghost" style="padding:6px 10px;font-size:11px;color:var(--red);border-color:#fecaca" onclick="clearMonth()">Clear Month</button>
+    </span>
+  </div>
+</div>
+
+<input type="file" id="fileInput" accept=".json" style="display:none">
+
+<script>
+const CATEGORIES = [
+  {id:'Food', label:'Food & Groceries', icon:'🛒', color:'#ff6b35'},
+  {id:'Transport', label:'Transport', icon:'🚕', color:'#0071e3'},
+  {id:'Shopping', label:'Shopping', icon:'🛍️', color:'#af52de'},
+  {id:'Bills', label:'Bills & Recharge', icon:'📱', color:'#ff3b30'},
+  {id:'Health', label:'Health', icon:'💊', color:'#34c759'},
+  {id:'Entertainment', label:'Entertainment', icon:'🎬', color:'#ff9500'},
+  {id:'Education', label:'Education', icon:'📚', color:'#5856d6'},
+  {id:'Other', label:'Other', icon:'📦', color:'#8e8e93'},
+];
+let selectedCat = 'Food';
+let selectedPay = 'Online';
+let editingId = null;
+let editingIncomeId = null;
+
+const $ = s => document.querySelector(s);
+const fmt = n => '₹ ' + Number(n).toLocaleString('en-IN', {minimumFractionDigits:0, maximumFractionDigits:2});
+const fmtDate = iso => {
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
+};
+const monthKey = d => d.slice(0,7);
+
+function loadStore(){
+  try{ return JSON.parse(localStorage.getItem('expense_tracker_v2')||'{}'); }catch{ return {}; }
+}
+function saveStore(s){ localStorage.setItem('expense_tracker_v2', JSON.stringify(s)); }
+function getMonthData(key){
+  const s = loadStore();
+  if(!s[key]) s[key] = {startingBalance:0, expenses:[], incomes:[]};
+  if(!s[key].incomes) s[key].incomes = [];
+  if(!s[key].expenses) s[key].expenses = [];
+  // migrate old Papa category if present — keep it but it won't be selectable going forward
+  return s[key];
+}
+function setMonthData(key, data){
+  const s = loadStore();
+  s[key] = data;
+  saveStore(s);
+}
+
+function initCats(){
+  const grid = $('#catGrid');
+  grid.innerHTML = CATEGORIES.map(c=>`
+    <button class="cat-chip ${c.id===selectedCat?'active':''}" data-cat="${c.id}" onclick="pickCat('${c.id}')">
+      <span>${c.icon}</span> ${c.label}
+    </button>
+  `).join('');
+  const sel = $('#filterCat');
+  sel.innerHTML = '<option value="">All categories</option>' + CATEGORIES.map(c=>`<option value="${c.id}">${c.icon} ${c.label}</option>`).join('');
+}
+function pickCat(id){
+  selectedCat = id;
+  document.querySelectorAll('.cat-chip').forEach(b=>{
+    b.classList.toggle('active', b.dataset.cat===id);
+  });
+}
+document.querySelectorAll('.pill').forEach(p=>{
+  p.addEventListener('click', ()=>{
+    document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));
+    p.classList.add('active');
+    selectedPay = p.dataset.pay;
+  });
+});
+
+function initMonth(){
+  const now = new Date();
+  const key = now.toISOString().slice(0,7);
+  $('#monthPicker').value = key;
+  $('#date').valueAsDate = now;
+  $('#incomeDate').valueAsDate = now;
+  $('#monthPicker').addEventListener('change', ()=>{
+    const mk = $('#monthPicker').value;
+    $('#date').value = mk + '-15';
+    $('#incomeDate').value = mk + '-15';
+    loadMonth();
+  });
+  $('#amount').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addExpense(); }});
+  $('#incomeAmount').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addIncome(); }});
+}
+
+function loadMonth(){
+  const mk = $('#monthPicker').value;
+  const data = getMonthData(mk);
+  $('#startingBalance').value = data.startingBalance || '';
+  updateAll();
+}
+function saveStartingBalance(){
+  const mk = $('#monthPicker').value;
+  const v = parseFloat($('#startingBalance').value);
+  if(isNaN(v) || v<0){ alert('Enter a valid starting balance'); return; }
+  const data = getMonthData(mk);
+  data.startingBalance = v;
+  setMonthData(mk, data);
+  updateAll();
+  const btn = document.querySelector('button[onclick="saveStartingBalance()"]');
+  const t = btn.textContent; btn.textContent='Saved ✓'; setTimeout(()=>btn.textContent=t,1200);
+}
+
+function addExpense(){
+  const mk = $('#monthPicker').value;
+  const date = $('#date').value;
+  const amount = parseFloat($('#amount').value);
+  const note = $('#note').value.trim();
+  if(!date){ alert('Pick a date'); return; }
+  if(!amount || amount<=0){ alert('Enter a valid amount'); $('#amount').focus(); return; }
+  const expMonth = monthKey(date);
+  const targetMonth = expMonth;
+  const data = getMonthData(targetMonth);
+  if(editingId){
+    const idx = data.expenses.findIndex(e=>e.id===editingId);
+    if(idx>=0) data.expenses[idx] = {...data.expenses[idx], date, amount, category:selectedCat, pay:selectedPay, note};
+    editingId=null;
+    $('#addBtn').textContent='Add Expense';
+  } else {
+    data.expenses.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,5), date, amount, category:selectedCat, pay:selectedPay, note});
+  }
+  setMonthData(targetMonth, data);
+  if(targetMonth!==mk){ $('#monthPicker').value = targetMonth; loadMonth(); } else updateAll();
+  resetForm(false);
+}
+function resetForm(clearCat=true){
+  $('#amount').value='';
+  $('#note').value='';
+  if(clearCat) pickCat('Food');
+  document.querySelectorAll('.pill').forEach(p=>p.classList.toggle('active', p.dataset.pay==='Online'));
+  selectedPay='Online';
+  editingId=null;
+  $('#addBtn').textContent='Add Expense';
+  $('#amount').focus();
+}
+
+// Income from Father
+function addIncome(){
+  const mk = $('#monthPicker').value;
+  const date = $('#incomeDate').value;
+  const amount = parseFloat($('#incomeAmount').value);
+  const note = $('#incomeNote').value.trim();
+  if(!date){ alert('Pick a date'); return; }
+  if(!amount || amount<=0){ alert('Enter a valid amount'); $('#incomeAmount').focus(); return; }
+  const incMonth = monthKey(date);
+  const targetMonth = incMonth;
+  const data = getMonthData(targetMonth);
+  if(editingIncomeId){
+    const idx = data.incomes.findIndex(e=>e.id===editingIncomeId);
+    if(idx>=0) data.incomes[idx] = {...data.incomes[idx], date, amount, note, source:'Father'};
+    editingIncomeId=null;
+    $('#incomeBtn').textContent='+ Add Money';
+  } else {
+    data.incomes.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,5), date, amount, note, source:'Father'});
+  }
+  setMonthData(targetMonth, data);
+  if(targetMonth!==mk){ $('#monthPicker').value = targetMonth; loadMonth(); } else updateAll();
+  $('#incomeAmount').value='';
+  $('#incomeNote').value='';
+  editingIncomeId=null;
+  $('#incomeBtn').textContent='+ Add Money';
+}
+function editIncome(id){
+  const mk = $('#monthPicker').value;
+  const data = getMonthData(mk);
+  const e = data.incomes.find(x=>x.id===id);
+  if(!e) return;
+  $('#incomeDate').value = e.date;
+  $('#incomeAmount').value = e.amount;
+  $('#incomeNote').value = e.note;
+  editingIncomeId=id;
+  $('#incomeBtn').textContent='Update';
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+function deleteIncome(id){
+  if(!confirm('Delete this money entry?')) return;
+  const mk = $('#monthPicker').value;
+  const data = getMonthData(mk);
+  data.incomes = data.incomes.filter(e=>e.id!==id);
+  setMonthData(mk, data);
+  updateAll();
+}
+
+function editExpense(id){
+  const mk = $('#monthPicker').value;
+  const data = getMonthData(mk);
+  const e = data.expenses.find(x=>x.id===id);
+  if(!e) return;
+  $('#date').value = e.date;
+  $('#amount').value = e.amount;
+  $('#note').value = e.note;
+  pickCat(e.category);
+  document.querySelectorAll('.pill').forEach(p=>p.classList.toggle('active', p.dataset.pay===e.pay));
+  selectedPay=e.pay;
+  editingId=id;
+  $('#addBtn').textContent='Update Expense';
+  window.scrollTo({top:0, behavior:'smooth'});
+  $('#amount').focus();
+}
+function deleteExpense(id){
+  if(!confirm('Delete this expense?')) return;
+  const mk = $('#monthPicker').value;
+  const data = getMonthData(mk);
+  data.expenses = data.expenses.filter(e=>e.id!==id);
+  setMonthData(mk, data);
+  updateAll();
+}
+function clearMonth(){
+  const mk = $('#monthPicker').value;
+  if(!confirm('Clear all expenses and Father money for '+mk+'? Starting balance will be kept.')) return;
+  const data = getMonthData(mk);
+  data.expenses=[];
+  data.incomes=[];
+  setMonthData(mk, data);
+  updateAll();
+}
+
+function getFiltered(){
+  const mk = $('#monthPicker').value;
+  const data = getMonthData(mk);
+  let list = [...data.expenses];
+  const q = $('#search').value.trim().toLowerCase();
+  const fc = $('#filterCat').value;
+  const fp = $('#filterPay').value;
+  const sort = $('#sortBy').value;
+  if(q) list = list.filter(e=> (e.note+e.category+e.pay+String(e.amount)).toLowerCase().includes(q));
+  if(fc) list = list.filter(e=>e.category===fc);
+  if(fp) list = list.filter(e=>e.pay===fp);
+  if(sort==='date_desc') list.sort((a,b)=> b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+  if(sort==='date_asc') list.sort((a,b)=> a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  if(sort==='amount_desc') list.sort((a,b)=> b.amount-a.amount);
+  if(sort==='amount_asc') list.sort((a,b)=> a.amount-b.amount);
+  return {list, data};
+}
+
+function computeBalanceMap(data, list){
+  // For accurate Balance After, consider all transactions chronologically
+  const all = [
+    ...data.expenses.map(e=>({id:e.id, date:e.date, amount:-e.amount})),
+    ...data.incomes.map(i=>({id:i.id, date:i.date, amount:i.amount}))
+  ].sort((a,b)=> a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+  let running = data.startingBalance||0;
+  const map={};
+  all.forEach(t=>{ running+=t.amount; map[t.id]=running; });
+  return map;
+}
+
+function renderIncomeList(){
+  const mk = $('#monthPicker').value;
+  const data = getMonthData(mk);
+  const wrap = $('#incomeListWrap');
+  if(!data.incomes.length){
+    wrap.innerHTML = '<div class="hint" style="padding:8px 0">No money added from Father yet this month.</div>';
+    return;
+  }
+  const balMap = computeBalanceMap(data, data.expenses);
+  const sorted = [...data.incomes].sort((a,b)=> b.date.localeCompare(a.date));
+  wrap.innerHTML = `
+    <div style="font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px">This month — Father</div>
+    <div style="display:grid;gap:8px">
+      ${sorted.map(e=>{
+        const bal = balMap[e.id];
+        return `<div style="display:flex;align-items:center;gap:10px;background:#fff;border:1px solid #c8e6c9;border-radius:12px;padding:10px 12px">
+          <span style="width:32px;height:32px;border-radius:9px;background:#e0f2f1;display:grid;place-items:center;font-size:14px">💚</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:700">${fmt(e.amount)} <span style="font-weight:500;color:var(--muted);font-size:11px">• ${fmtDate(e.date)} • Balance ${fmt(bal)}</span></div>
+            <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.note||'—'}</div>
+          </div>
+          <button class="icon-btn" onclick="editIncome('${e.id}')" title="Edit">✎</button>
+          <button class="icon-btn" onclick="deleteIncome('${e.id}')" title="Delete">🗑</button>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderTable(){
+  const {list, data} = getFiltered();
+  const tbody = $('#tbody');
+  const empty = $('#empty');
+  const balMap = computeBalanceMap(data, list);
+  if(list.length===0){
+    tbody.innerHTML='';
+    empty.style.display='block';
+  } else {
+    empty.style.display='none';
+    tbody.innerHTML = list.map(e=>{
+      const cat = CATEGORIES.find(c=>c.id===e.category) || {icon:'📦', label:e.category, color:'#8e8e93'};
+      const payClass = e.pay==='Online'?'online': e.pay==='Cash'?'cash': e.pay==='Card'?'card':'upi';
+      const bal = balMap[e.id];
+      const balColor = bal<0 ? 'var(--red)' : bal < ((data.startingBalance + (data.incomes||[]).reduce((s,x)=>s+x.amount,0))*0.2) ? 'var(--orange)' : 'var(--green)';
+      return `<tr>
+        <td style="white-space:nowrap;font-weight:600">${fmtDate(e.date)}</td>
+        <td><span class="badge" style="border-color:${cat.color}20;background:${cat.color}12;color:${cat.color}">${cat.icon} ${cat.label}</span></td>
+        <td class="amt">${fmt(e.amount)}</td>
+        <td><span class="badge ${payClass}">${e.pay}</span></td>
+        <td style="max-width:220px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${e.note?'var(--text)':'var(--muted2)'}" title="${(e.note||'').replace(/"/g,'&quot;')}">${e.note||'—'}</td>
+        <td style="font-weight:700;color:${balColor}">${fmt(bal)}</td>
+        <td><div class="row-actions"><button class="icon-btn" onclick="editExpense('${e.id}')" title="Edit">✎</button><button class="icon-btn" onclick="deleteExpense('${e.id}')" title="Delete">🗑</button></div></td>
+      </tr>`;
+    }).join('');
+  }
+  renderIncomeList();
+}
+
+function updateStats(){
+  const mk = $('#monthPicker').value;
+  const data = getMonthData(mk);
+  const total = data.expenses.reduce((s,e)=>s+e.amount,0);
+  const received = (data.incomes||[]).reduce((s,e)=>s+e.amount,0);
+  const available = (data.startingBalance||0) + received;
+  const remaining = available - total;
+  const count = data.expenses.length;
+
+  $('#heroBalance').textContent = fmt(remaining);
+  $('#heroBalance').style.color = remaining<0 ? '#ff453a' : '#fff';
+  $('#heroStarting').textContent = fmt(data.startingBalance||0);
+  $('#heroReceived').textContent = fmt(received);
+  $('#heroReceivedCount').textContent = (data.incomes||[]).length + ' time' + ((data.incomes||[]).length!==1?'s':'');
+  $('#heroSpent').textContent = fmt(total);
+  $('#heroMonth').textContent = new Date(mk+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long', year:'numeric'});
+  $('#heroCount').textContent = count + ' transaction' + (count!==1?'s':'');
+  const hasFunds = available>0;
+  $('#heroSub').textContent = !hasFunds ? 'Set starting balance or add Father money to begin' : remaining<0 ? '⚠️ You are over budget' : remaining < available*0.2 ? '⚡ Low balance — watch spending' : 'On track — keep going';
+  const pct = available ? Math.min(100, Math.max(0, (total/available)*100)) : 0;
+  $('#progressBar').style.width = pct+'%';
+  $('#progressBar').style.background = pct>90 ? 'linear-gradient(90deg,#ff3b30,#ff9500)' : pct>70 ? 'linear-gradient(90deg,#ff9500,#ffcc02)' : 'linear-gradient(90deg,#0071e3,#34c759)';
+  $('#progressLabel').textContent = pct.toFixed(0)+'% used';
+
+  $('#statRemaining').textContent = fmt(remaining);
+  $('#statRemaining').style.color = remaining<0 ? 'var(--red)' : remaining < available*0.2 ? 'var(--orange)' : 'var(--text)';
+  $('#statRemainingHint').textContent = hasFunds ? 'of '+fmt(available)+' available' : 'set balance';
+  $('#statReceived').textContent = fmt(received);
+  $('#statReceivedHint').textContent = (data.incomes||[]).length ? (data.incomes.length+' time'+(data.incomes.length!==1?'s':'')+' this month') : 'no money yet';
+  $('#statSpent').textContent = fmt(total);
+  $('#statSpentHint').textContent = count? count+' expense'+(count!==1?'s':'')+' this month' : 'no expenses yet';
+  $('#statCount').textContent = String(count);
+  $('#statCountHint').textContent = 'expenses this month';
+}
+
+function renderBreakdown(){
+  const mk = $('#monthPicker').value;
+  const data = getMonthData(mk);
+  const total = data.expenses.reduce((s,e)=>s+e.amount,0);
+  const byCat = {};
+  data.expenses.forEach(e=>{ byCat[e.category]=(byCat[e.category]||0)+e.amount; });
+  const box = $('#breakdown');
+  $('#breakdownSub').textContent = total? fmt(total)+' total' : 'no data';
+  if(total===0){ box.innerHTML='<span class="hint">Add expenses to see breakdown</span>'; return; }
+  const sorted = Object.entries(byCat).sort((a,b)=>b[1]-a[1]);
+  box.innerHTML = sorted.map(([cat, amt])=>{
+    const c = CATEGORIES.find(x=>x.id===cat) || {icon:'📦', label:cat, color:'#8e8e93'};
+    const pct = (amt/total*100);
+    return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700"><span style="width:28px;height:28px;border-radius:8px;background:${c.color};color:#fff;display:grid;place-items:center;font-size:14px">${c.icon}</span> ${c.label}</div>
+      <div style="font-size:18px;font-weight:800;margin-top:8px">${fmt(amt)}</div>
+      <div style="font-size:11px;color:var(--muted)">${pct.toFixed(1)}% of spending</div>
+      <div style="height:6px;background:#eee;border-radius:999px;overflow:hidden;margin-top:8px"><i style="display:block;height:100%;width:${pct}%;background:${c.color};border-radius:999px"></i></div>
+    </div>`;
+  }).join('');
+}
+
+let catChart, dailyChart;
+function renderCharts(){
+  const mk = $('#monthPicker').value;
+  const data = getMonthData(mk);
+  const byCat = {};
+  data.expenses.forEach(e=>{ byCat[e.category]=(byCat[e.category]||0)+e.amount; });
+  const labels = Object.keys(byCat);
+  const values = Object.values(byCat);
+  const colors = labels.map(l=> (CATEGORIES.find(c=>c.id===l)||{color:'#8e8e93'}).color);
+  const ctx1 = document.getElementById('catChart');
+  if(catChart) catChart.destroy();
+  catChart = new Chart(ctx1, {
+    type:'doughnut',
+    data:{labels: labels.map(l=> (CATEGORIES.find(c=>c.id===l)||{label:l}).label), datasets:[{data:values, backgroundColor:colors, borderWidth:0}]},
+    options:{responsive:true, maintainAspectRatio:false, cutout:'62%', plugins:{legend:{position:'bottom', labels:{usePointStyle:true, pointStyle:'circle', padding:14, font:{size:11, weight:600}}}, tooltip:{callbacks:{label:ctx=> ' '+ctx.label+': '+fmt(ctx.parsed)}}}}
+  });
+  const daysInMonth = new Date(Number(mk.slice(0,4)), Number(mk.slice(5,7)), 0).getDate();
+  const daily = Array(daysInMonth).fill(0);
+  data.expenses.forEach(e=>{ const d = Number(e.date.slice(8,10)); if(d>=1 && d<=daysInMonth) daily[d-1]+=e.amount; });
+  const ctx2 = document.getElementById('dailyChart');
+  if(dailyChart) dailyChart.destroy();
+  dailyChart = new Chart(ctx2, {
+    type:'bar',
+    data:{labels: daily.map((_,i)=> String(i+1)), datasets:[{label:'Spent', data:daily, backgroundColor:'#0071e3', borderRadius:6, barPercentage:0.7}]},
+    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:ctx=> ' '+fmt(ctx.parsed.y)}}}, scales:{x:{grid:{display:false}, ticks:{font:{size:10}, maxRotation:0, autoSkip:true, maxTicksLimit:15}, title:{display:true,text:'Day of month', font:{size:11, weight:600}}}, y:{grid:{color:'#f0f0f2'}, ticks:{callback:v=> '₹'+v, font:{size:10}}, beginAtZero:true}}
+  });
+}
+
+function updateAll(){
+  updateStats();
+  renderBreakdown();
+  renderTable();
+  renderCharts();
+}
+
+function exportCSV(){
+  const mk = $('#monthPicker').value;
+  const data = getMonthData(mk);
+  const rows = [['Type','Date','Category/Source','Amount','Payment','Note','Balance After']];
+  const all = [
+    ...data.expenses.map(e=>({type:'Expense', date:e.date, cat:e.category, amt:e.amount, pay:e.pay, note:e.note, id:e.id})),
+    ...data.incomes.map(i=>({type:'Income', date:i.date, cat:'Father', amt:i.amount, pay:'Father', note:i.note, id:i.id}))
+  ].sort((a,b)=> a.date.localeCompare(b.date));
+  let bal = data.startingBalance||0;
+  all.forEach(r=>{
+    bal += r.type==='Income' ? r.amt : -r.amt;
+    rows.push([r.type, r.date, r.cat, String(r.amt), r.pay, '"'+(r.note||'').replace(/"/g,'""')+'"', String(bal)]);
+  });
+  rows.unshift(['Month', mk, 'Starting Balance', String(data.startingBalance||0)]);
+  const csv = rows.map(r=>r.join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='expenses-'+mk+'.csv'; a.click();
+}
+function exportJSON(){
+  const s = loadStore();
+  const blob = new Blob([JSON.stringify(s,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='expense-tracker-backup.json'; a.click();
+}
+function importJSON(){ $('#fileInput').click(); }
+$('#fileInput').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{
+    try{
+      const obj = JSON.parse(r.result);
+      if(typeof obj!=='object' || Array.isArray(obj)) throw new Error('Invalid');
+      localStorage.setItem('expense_tracker_v2', JSON.stringify(obj));
+      alert('Backup imported ✓');
+      loadMonth();
+    }catch{ alert('Invalid backup file'); }
+  };
+  r.readAsText(f);
+  e.target.value='';
+});
+
+initCats();
+initMonth();
+loadMonth();
+</script>
+</body>
+</html>
