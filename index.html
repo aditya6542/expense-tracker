@@ -945,8 +945,16 @@ async function savePapaPin(){
 }
 function copyPapaLink(){
   const el=document.getElementById('papaLink');
-  const txt=el.textContent;
+  let txt=el.textContent;
   if(!txt || txt.includes('please sign in')) return alert('Please sign in first');
+  // Include cloud config in link so phone can auto-connect
+  const cfg=getSbConfig();
+  if(cfg && cfg.url && cfg.key){
+    try{
+      const sb=btoa(JSON.stringify(cfg));
+      txt += (txt.includes('?')?'&':'?') + 'sb=' + encodeURIComponent(sb);
+    }catch{}
+  }
   navigator.clipboard.writeText(txt).then(()=>{ const b=document.querySelector('button[onclick="copyPapaLink()"]'); const o=b.textContent; b.textContent='Copied ✓'; setTimeout(()=>b.textContent=o,1500); }).catch(()=>{ prompt('Copy this link:', txt); });
 }
 
