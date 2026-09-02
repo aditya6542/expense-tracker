@@ -105,25 +105,25 @@ td{padding:13px 16px;font-size:13px;border-bottom:1px solid #f0f0f2;vertical-ali
     <div class="auth-head">
       <div class="auth-logo">👨‍👧</div>
       <h1>Papa Portal</h1>
-      <p>View-only — see all expenses, no edits</p>
+      <p>Secure read-only access to expense overview</p>
     </div>
     <div class="auth-body">
       <div id="authError" class="auth-error"></div>
       <form id="papaLoginForm" onsubmit="event.preventDefault(); doPapaLogin();">
         <div class="field">
-          <label>Your Username (beta ka account)</label>
-          <input type="text" id="papaUser" placeholder="e.g. mehta" autocomplete="username">
+          <label>Account Username</label>
+          <input type="text" id="papaUser" placeholder="Enter account username" autocomplete="username">
         </div>
         <div class="field">
-          <label>Papa View PIN</label>
-          <input type="password" id="papaPin" placeholder="••••" autocomplete="current-password">
-          <div class="hint" style="margin-top:6px">PIN tum set karoge — papa ko ye PIN + username dena hai</div>
+          <label>View PIN</label>
+          <input type="password" id="papaPin" placeholder="Enter view PIN" autocomplete="current-password">
+          <div class="hint" style="margin-top:6px">Enter the username and PIN shared with you</div>
         </div>
         <button type="submit" class="auth-btn" id="papaBtn">View Expenses →</button>
       </form>
-      <div class="hint" style="margin-top:12px;text-align:center">Papa sirf dekh sakte hain — add / edit / delete nahi kar sakte</div>
+      <div class="hint" style="margin-top:12px;text-align:center">Read-only access — viewing only, no modifications permitted</div>
     </div>
-    <div class="auth-foot">🔒 Read-only access • made by <b>mehta xd</b> ✨</div>
+    <div class="auth-foot">🔒 Secure read-only access • made by <b>mehta xd</b> ✨</div>
   </div>
   <div class="made-by">made by <span>mehta xd</span> ✨</div>
   </div>
@@ -302,21 +302,54 @@ function clearError(){
   el.textContent=''; el.classList.remove('show');
 }
 
-function doPapaLogin(){
+async function doPapaLogin(){
   clearError();
   const u = document.getElementById('papaUser').value.trim();
   const pin = document.getElementById('papaPin').value;
-  if(!u) return showError('Enter your username (beta ka account)');
-  if(!pin) return showError('Enter Papa View PIN');
-  const users = getUsers();
-  const key = u.toLowerCase();
-  if(!users[key]) return showError('No account found with that username — check spelling');
-  const pins = getPins();
-  const expected = pins[key];
-  if(!expected) return showError('No Papa PIN set for this account — login on main site and set PIN first');
-  if(expected !== hash(pin)) return showError('Wrong PIN');
-  sessionStorage.setItem(PAPA_SESSION_KEY, u);
-  localStorage.setItem(PAPA_SESSION_KEY, u);
+  if(!u) return showError('Please enter the account username');
+  if(!pin) return showError('Please enter the view PIN');
+  const btn=document.getElementById('papaBtn');
+  if(btn){ btn.disabled=true; btn.textContent='Verifying…'; }
+  // Try local first
+  let users = getUsers();
+  let pins = getPins();
+  let key = u.toLowerCase();
+  let expected = pins[key];
+  // If not found locally, try cloud
+  if(!users[key] || !expected){
+    const cfg=getSbConfig();
+    if(cfg && cfg.url && cfg.key){
+      try{
+        if(!supabaseClient) supabaseClient = window.supabase.createClient(cfg.url, cfg.key);
+        // Fetch user and PIN from cloud
+        const [uRes, pRes] = await Promise.all([
+          supabaseClient.from('app_users').select('username, pass').eq('username', key).single(),
+          supabaseClient.from('papa_pins').select('pin_hash').eq('username', key).single()
+        ]);
+        if(uRes.data && !uRes.error){
+          users[key]={user:uRes.data.username, pass:uRes.data.pass};
+          localStorage.setItem(USERS_KEY, JSON.stringify(users));
+        }
+        if(pRes.data && !pRes.error){
+          pins[key]=pRes.data.pin_hash;
+          localStorage.setItem(PAPA_PIN_KEY, JSON.stringify(pins));
+          expected=pins[key];
+        }
+        // Also try to cache expense data for faster load
+        const eRes = await supabaseClient.from('expense_data').select('data').eq('username', key).single();
+        if(eRes.data && !eRes.error && eRes.data.data){
+          localStorage.setItem('expense_tracker_v2_'+key, JSON.stringify(eRes.data.data));
+        }
+      }catch(e){}
+      users=getUsers(); pins=getPins(); expected=pins[key];
+    }
+  }
+  if(btn){ btn.disabled=false; btn.textContent='View Expenses →'; }
+  if(!users[key]) return showError('No account found with that username — please check and try again');
+  if(!expected) return showError('View access is not yet configured for this account — please set up a PIN on the main portal first');
+  if(expected !== hash(pin)) return showError('Incorrect PIN — please try again');
+  sessionStorage.setItem(PAPA_SESSION_KEY, users[key].user);
+  localStorage.setItem(PAPA_SESSION_KEY, users[key].user);
   enterPapa();
 }
 function doPapaLogout(){

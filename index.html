@@ -304,28 +304,28 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
-  <!-- Papa View PIN -->
+  <!-- Papa Portal — Professional -->
   <div class="card" style="margin-bottom:14px;border:1px solid #c8e6c9;background:linear-gradient(180deg,#f0faf9 0%, #fff 100%)">
     <div class="card-head">
-      <h3>👨‍👧 Papa Portal — View Only</h3>
-      <p>Share with papa — he can only view, not edit</p>
+      <h3>👨‍👧 Papa Portal — Read-Only Access</h3>
+      <p>Secure view-only access for your father</p>
     </div>
     <div class="card-pad">
       <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end">
         <div class="field" style="margin:0">
-          <label>Papa View PIN (set a 4-digit PIN for papa)</label>
-          <input type="password" id="papaPinSet" placeholder="e.g. 1234" maxlength="20" autocomplete="off">
+          <label>Set View PIN for Papa</label>
+          <input type="password" id="papaPinSet" placeholder="Create a secure PIN" maxlength="20" autocomplete="off">
         </div>
         <button class="btn-primary" style="padding:11px 18px;white-space:nowrap" onclick="savePapaPin()">Save PIN</button>
       </div>
       <div class="hint" id="papaPinHint" style="margin-top:8px"></div>
       <div style="margin-top:10px;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <span style="font-size:12px;font-weight:700">Papa link:</span>
-        <code id="papaLink" style="font-size:11px;background:#fff;border:1px solid var(--border);padding:6px 10px;border-radius:8px;flex:1;min-width:180px;overflow:auto;white-space:nowrap">— login first —</code>
-        <button class="btn-ghost" style="padding:6px 12px;font-size:11px" onclick="copyPapaLink()">Copy</button>
-        <a id="papaOpen" href="papa.html" target="_blank" class="btn-ghost" style="padding:6px 12px;font-size:11px;text-decoration:none;color:inherit;display:inline-block">Open</a>
+        <span style="font-size:12px;font-weight:700">Papa Portal Link:</span>
+        <code id="papaLink" style="font-size:11px;background:#fff;border:1px solid var(--border);padding:6px 10px;border-radius:8px;flex:1;min-width:180px;overflow:auto;white-space:nowrap">— please sign in —</code>
+        <button class="btn-ghost" style="padding:6px 12px;font-size:11px" onclick="copyPapaLink()">Copy Link</button>
+        <a id="papaOpen" href="papa.html" target="_blank" class="btn-ghost" style="padding:6px 12px;font-size:11px;text-decoration:none;color:inherit;display:inline-block">Open Portal</a>
       </div>
-      <div class="hint" style="margin-top:8px">Papa ko ye link + tumhara <b>username</b> + <b>PIN</b> dena hai. Wo sirf dekh payenge — add/edit/delete nahi.</div>
+      <div class="hint" style="margin-top:8px">Share this link along with your <b>username</b> and <b>PIN</b> with your father. He will have read-only access to view your expenses.</div>
     </div>
   </div>
 
@@ -530,7 +530,7 @@ tr:last-child td{border-bottom:none}
 <input type="file" id="fileInput" accept=".json" style="display:none">
 
 <script>
-// ===== AUTH (multi-user, fixed) =====
+// ===== AUTH (multi-user + cloud) =====
 const USERS_KEY = 'et_users_v1';
 const SESSION_KEY = 'et_session_v1';
 const LEGACY_AUTH_KEY = 'et_auth_v1';
@@ -543,7 +543,6 @@ function getUsers(){
   try{
     const raw = localStorage.getItem(USERS_KEY);
     if(raw) return JSON.parse(raw);
-    // migrate legacy single user
     const legacy = localStorage.getItem(LEGACY_AUTH_KEY);
     if(legacy){
       const a = JSON.parse(legacy);
@@ -560,6 +559,39 @@ function setUsers(u){ localStorage.setItem(USERS_KEY, JSON.stringify(u)); }
 function getSession(){ try{ return sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY); }catch{ return null; } }
 function setSession(u){ try{ sessionStorage.setItem(SESSION_KEY, u); localStorage.setItem(SESSION_KEY, u); }catch{} }
 function clearSession(){ try{ sessionStorage.removeItem(SESSION_KEY); localStorage.removeItem(SESSION_KEY); }catch{} }
+
+// Cloud users (Supabase) — enables login on any device
+async function cloudGetUser(username){
+  if(!supabaseClient) return null;
+  try{
+    const { data, error } = await supabaseClient.from('app_users').select('username, pass').eq('username', username.toLowerCase()).single();
+    if(error) return null;
+    return data;
+  }catch{ return null; }
+}
+async function cloudCreateUser(username, passHash){
+  if(!supabaseClient) return { ok:false, error:'Cloud not connected' };
+  try{
+    const { error } = await supabaseClient.from('app_users').insert({ username: username.toLowerCase(), pass: passHash });
+    if(error){
+      if(error.code==='23505') return { ok:false, error:'Username already exists — please sign in.' };
+      return { ok:false, error: error.message };
+    }
+    return { ok:true };
+  }catch(e){ return { ok:false, error: e.message }; }
+}
+async function ensureCloudUserMigrated(){
+  // If local users exist but cloud is empty, push them once
+  if(!supabaseClient) return;
+  const users=getUsers();
+  for(const k of Object.keys(users)){
+    const u=users[k];
+    const existing=await cloudGetUser(u.user);
+    if(!existing){
+      await supabaseClient.from('app_users').upsert({ username: u.user.toLowerCase(), pass: u.pass }, { onConflict:'username' });
+    }
+  }
+}
 
 function showError(msg){
   const el = document.getElementById('authError');
@@ -591,7 +623,7 @@ function switchAuth(mode){
   document.getElementById('authTitle').textContent = isLogin ? 'Welcome back' : 'Create account';
   document.getElementById('authSub').textContent = isLogin ? 'Sign in to your expense tracker' : 'Set a username & password to get started';
 }
-function doSignup(){
+async function doSignup(){
   clearMessages();
   const u = document.getElementById('signupUser').value.trim();
   const p = document.getElementById('signupPass').value;
@@ -600,24 +632,53 @@ function doSignup(){
   if(!/^[a-zA-Z0-9._-]+$/.test(u)) return showError('Username: letters, numbers, dot, _ and - only.');
   if(!p || p.length<4) return showError('Password must be at least 4 characters.');
   if(p!==c) return showError('Passwords do not match.');
-  const users = getUsers();
   const key = u.toLowerCase();
+  const users = getUsers();
   if(users[key]) return showError('Username already exists — please sign in with that username.');
+  // If cloud is connected, create there first (so phone can login)
+  if(supabaseClient){
+    const btn=document.getElementById('signupBtn');
+    if(btn){ btn.disabled=true; btn.textContent='Creating…'; }
+    const res=await cloudCreateUser(u, hash(p));
+    if(btn){ btn.disabled=false; btn.textContent='Create Account →'; }
+    if(!res.ok) return showError(res.error);
+    users[key] = {user:u, pass:hash(p)};
+    setUsers(users);
+    setSession(u);
+    showSuccess('Account created! Logging you in…');
+    setTimeout(enterApp, 400);
+    return;
+  }
+  // Local only (no cloud yet)
   users[key] = {user:u, pass:hash(p)};
   setUsers(users);
   setSession(u);
   showSuccess('Account created! Logging you in…');
+  // If cloud gets connected later, this will be migrated
   setTimeout(enterApp, 400);
 }
-function doLogin(){
+async function doLogin(){
   clearMessages();
   const u = document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value;
   if(!u || !p) return showError('Enter username and password.');
-  const users = getUsers();
   const key = u.toLowerCase();
-  const acc = users[key];
-  if(!acc) return showError('No account found with that username — create one first.');
+  const users = getUsers();
+  let acc = users[key];
+  // Try cloud if not found locally and cloud is connected
+  if(!acc && supabaseClient){
+    const btn=document.getElementById('loginBtn');
+    if(btn){ btn.disabled=true; btn.textContent='Signing in…'; }
+    const cloud=await cloudGetUser(u);
+    if(btn){ btn.disabled=false; btn.textContent='Sign In →'; }
+    if(cloud){
+      // Cache locally for offline use
+      users[key]={user:cloud.username, pass:cloud.pass};
+      setUsers(users);
+      acc=users[key];
+    }
+  }
+  if(!acc) return showError('No account found with that username — create one first. If you signed up on another device, connect Cloud Sync first or sign up again on this device.');
   if(acc.pass!==hash(p)) return showError('Wrong password.');
   setSession(acc.user);
   enterApp();
@@ -632,7 +693,7 @@ function doLogout(){
   if(last) document.getElementById('loginUser').value = last;
   document.getElementById('loginPass').value='';
 }
-function enterApp(){
+async function enterApp(){
   document.getElementById('auth').style.display='none';
   document.getElementById('app').style.display='block';
   const u = getSession() || Object.values(getUsers())[0]?.user || '—';
@@ -643,6 +704,8 @@ function enterApp(){
   loadMonth();
   initSupabaseUI();
   initPapaPinUI();
+  // Migrate local users to cloud if newly connected
+  if(supabaseClient) await ensureCloudUserMigrated();
   // try cloud pull
   pullFromCloud().then(()=>{ updateAll(); });
 }
@@ -716,6 +779,12 @@ async function saveSupabaseConfig(){
   document.getElementById('syncHint').textContent='Connecting…';
   const ok = await testSupabase(true);
   if(ok){
+    await ensureCloudUserMigrated();
+    // Also migrate papa pins
+    const pins=getPapaPins();
+    for(const k of Object.keys(pins)){
+      await supabaseClient.from('papa_pins').upsert({ username:k, pin_hash:pins[k] }, { onConflict:'username' });
+    }
     await pushToCloud();
     await pullFromCloud();
     updateAll();
@@ -831,7 +900,7 @@ const fmtDate = iso => {
 };
 const monthKey = d => d.slice(0,7);
 
-// ===== PAPA PIN =====
+// ===== PAPA PIN (local + cloud) =====
 const PAPA_PIN_KEY = 'et_papa_pins_v1';
 function getPapaPins(){ try{ return JSON.parse(localStorage.getItem(PAPA_PIN_KEY)||'{}'); }catch{ return {}; } }
 function setPapaPins(p){ localStorage.setItem(PAPA_PIN_KEY, JSON.stringify(p)); }
@@ -845,26 +914,39 @@ function initPapaPinUI(){
   const base = location.origin + location.pathname.replace(/index\.html$/,'') + 'papa.html';
   if(linkEl) linkEl.textContent = base;
   if(openEl) openEl.href = 'papa.html';
-  if(!u){ if(hint) hint.textContent='Login first to set PIN'; return; }
-  if(hint) hint.textContent = has ? '✓ PIN set — share username "'+(getSession()||'')+'" + PIN with papa' : 'No PIN yet — set one above';
+  if(!u){ if(hint) hint.textContent='Please sign in to set up Papa Portal access'; return; }
+  if(hint) hint.textContent = has ? '✓ PIN configured — share your username and PIN with your father to grant view access' : 'No PIN configured — create one to enable Papa Portal access';
+  // Try to sync PIN from cloud if not found locally
+  if(!has && supabaseClient){
+    supabaseClient.from('papa_pins').select('pin_hash').eq('username', u).single().then(({data, error})=>{
+      if(!error && data && data.pin_hash){
+        const p=getPapaPins(); p[u]=data.pin_hash; setPapaPins(p);
+        initPapaPinUI();
+      }
+    });
+  }
 }
-function savePapaPin(){
+async function savePapaPin(){
   const u=(getSession()||'').toLowerCase();
-  if(!u) return alert('Login first');
+  if(!u) return alert('Please sign in first');
   const pin=document.getElementById('papaPinSet').value;
   if(!pin || pin.length<3) return alert('PIN must be at least 3 characters');
   const pins=getPapaPins();
   pins[u]=hash(pin);
   setPapaPins(pins);
+  // Sync to cloud if connected
+  if(supabaseClient){
+    await supabaseClient.from('papa_pins').upsert({ username:u, pin_hash:hash(pin) }, { onConflict:'username' });
+  }
   document.getElementById('papaPinSet').value='';
   initPapaPinUI();
   const h=document.getElementById('papaPinHint');
-  const t=h.textContent; h.textContent='✓ PIN saved! Share it with papa'; setTimeout(()=>{ h.textContent=t; initPapaPinUI(); }, 2500);
+  const t=h.textContent; h.textContent='✓ PIN saved successfully — you can now share access with your father'; setTimeout(()=>{ h.textContent=t; initPapaPinUI(); }, 2500);
 }
 function copyPapaLink(){
   const el=document.getElementById('papaLink');
   const txt=el.textContent;
-  if(!txt || txt.includes('login first')) return alert('Login first');
+  if(!txt || txt.includes('please sign in')) return alert('Please sign in first');
   navigator.clipboard.writeText(txt).then(()=>{ const b=document.querySelector('button[onclick="copyPapaLink()"]'); const o=b.textContent; b.textContent='Copied ✓'; setTimeout(()=>b.textContent=o,1500); }).catch(()=>{ prompt('Copy this link:', txt); });
 }
 
