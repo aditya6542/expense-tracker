@@ -267,40 +267,12 @@ tr:last-child td{border-bottom:none}
 
 <div class="wrap">
 
-  <!-- Cloud Sync Banner (FREE - Supabase) -->
-  <div class="card" id="syncCard" style="margin-bottom:14px;border:1px solid #d1e7ff;background:linear-gradient(180deg,#f0f7ff 0%, #ffffff 100%)">
-    <div class="card-head">
-      <h3>☁️ Cloud Sync — Free (Supabase)</h3>
-      <p><span class="sync-dot off" id="syncDot"></span> <span id="syncStatus">Not connected — local only</span></p>
-    </div>
-    <div class="card-pad">
-      <div class="hint" style="margin-bottom:10px">Connect free Supabase to sync your data across devices. Same login → same data everywhere. 100% free tier.</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="field">
-          <label>Supabase URL</label>
-          <input type="text" id="sbUrl" placeholder="https://xyz.supabase.co">
-        </div>
-        <div class="field">
-          <label>Supabase Anon Key</label>
-          <input type="password" id="sbKey" placeholder="eyJhbG...">
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-        <button class="btn-primary" onclick="saveSupabaseConfig()">Connect & Sync</button>
-        <button class="btn-ghost" onclick="testSupabase()">Test</button>
-        <button class="btn-ghost" onclick="clearSupabaseConfig()">Disconnect</button>
-        <span class="hint" id="syncHint" style="align-self:center"></span>
-      </div>
-      <details style="margin-top:10px">
-        <summary style="font-size:12px;font-weight:700;cursor:pointer;color:var(--accent)">How to get free Supabase? (30 sec)</summary>
-        <ol style="font-size:12px;color:var(--muted);margin:8px 0 0 18px;line-height:1.7">
-          <li>Go to <a href="https://supabase.com" target="_blank">supabase.com</a> → Sign up (free)</li>
-          <li>Create new project (free tier)</li>
-          <li>Project → Settings → API → copy <b>URL</b> and <b>anon public key</b></li>
-          <li>Paste above → Connect & Sync</li>
-          <li>Run SQL in <b>supabase-setup.sql</b> (in repo) once in Supabase SQL Editor</li>
-        </ol>
-      </details>
+  <!-- Cloud Sync — Auto (hidden, embedded) -->
+  <div class="card" id="syncCard" style="margin-bottom:14px;border:1px solid #d1e7ff;background:linear-gradient(180deg,#f0f7ff 0%, #ffffff 100%);display:none">
+    <div class="card-pad" style="display:flex;align-items:center;gap:10px">
+      <span class="sync-dot off" id="syncDot"></span>
+      <span style="font-size:12px;font-weight:600" id="syncStatus">Syncing…</span>
+      <span class="hint" id="syncHint"></span>
     </div>
   </div>
 
@@ -727,20 +699,20 @@ async function enterApp(){
   }
 })();
 
-// ===== SUPABASE FREE BACKEND =====
+// ===== SUPABASE — EMBEDDED (auto-connect, no manual entry) =====
+const SB_URL = 'https://geabxhzofbvxejlsvmub.supabase.co';
+const SB_KEY = 'sb_publishable_scTcUAVskpqnZTqBxUqDSw_jx1aJIwT';
 let supabaseClient = null;
 const SB_CONFIG_KEY = 'et_supabase_config_v1';
 
 function getSbConfig(){
-  try{ return JSON.parse(localStorage.getItem(SB_CONFIG_KEY)||'null'); }catch{ return null; }
+  // Always use embedded config — no manual entry needed
+  return { url: SB_URL, key: SB_KEY };
 }
 function initSupabaseUI(){
-  const cfg = getSbConfig();
-  if(cfg){
-    document.getElementById('sbUrl').value = cfg.url || '';
-    document.getElementById('sbKey').value = cfg.key || '';
-    initSupabaseClient(cfg.url, cfg.key);
-  }
+  try{
+    supabaseClient = window.supabase.createClient(SB_URL, SB_KEY);
+  }catch(e){ console.error(e); }
   updateSyncStatus();
 }
 function initSupabaseClient(url, key){
@@ -755,73 +727,28 @@ function updateSyncStatus(){
   const st = document.getElementById('syncStatus');
   const foot = document.getElementById('footSync');
   const hint = document.getElementById('syncHint');
-  const cfg = getSbConfig();
-  if(supabaseClient && cfg){
-    dot.className='sync-dot on';
-    st.textContent='Connected — syncing to cloud';
+  if(supabaseClient){
+    if(dot) dot.className='sync-dot on';
+    if(st) st.textContent='Cloud sync active';
     if(foot) foot.textContent='cloud sync on';
     if(hint) hint.textContent='✓ Connected';
   } else {
-    dot.className='sync-dot off';
-    st.textContent='Not connected — local only';
+    if(dot) dot.className='sync-dot off';
+    if(st) st.textContent='Sync unavailable';
     if(foot) foot.textContent='local only';
     if(hint) hint.textContent='';
   }
 }
-async function saveSupabaseConfig(){
-  const url = document.getElementById('sbUrl').value.trim().replace(/\/$/,'');
-  const key = document.getElementById('sbKey').value.trim();
-  if(!url || !key) return alert('Paste both Supabase URL and anon key');
-  if(!url.startsWith('https://')) return alert('URL should start with https://');
-  localStorage.setItem(SB_CONFIG_KEY, JSON.stringify({url, key}));
-  initSupabaseClient(url, key);
-  updateSyncStatus();
-  document.getElementById('syncHint').textContent='Connecting…';
-  const ok = await testSupabase(true);
-  if(ok){
-    await ensureCloudUserMigrated();
-    // Also migrate papa pins
-    const pins=getPapaPins();
-    for(const k of Object.keys(pins)){
-      await supabaseClient.from('papa_pins').upsert({ username:k, pin_hash:pins[k] }, { onConflict:'username' });
-    }
-    await pushToCloud();
-    await pullFromCloud();
-    updateAll();
-    document.getElementById('syncHint').textContent='✓ Synced!';
-    setTimeout(()=>document.getElementById('syncHint').textContent='✓ Connected', 2000);
-  }
-}
-function clearSupabaseConfig(){
-  if(!confirm('Disconnect cloud sync? Local data will stay.')) return;
-  localStorage.removeItem(SB_CONFIG_KEY);
-  supabaseClient=null;
-  updateSyncStatus();
-  document.getElementById('sbUrl').value='';
-  document.getElementById('sbKey').value='';
-}
+// Legacy stubs (kept for compatibility, no-op)
+async function saveSupabaseConfig(){}
+function clearSupabaseConfig(){}
 async function testSupabase(silent){
-  const cfg = getSbConfig();
-  if(!cfg || !supabaseClient){
-    if(!silent) alert('Not connected — paste URL and key first');
-    return false;
-  }
+  if(!supabaseClient) return false;
   try{
     const { error } = await supabaseClient.from('expense_data').select('username').limit(1);
-    if(error){
-      if(error.message.includes('does not exist') || error.code==='42P01'){
-        if(!silent) alert('Table not found — run supabase-setup.sql in Supabase SQL Editor first');
-      } else {
-        if(!silent) alert('Connection failed: ' + error.message);
-      }
-      return false;
-    }
-    if(!silent) alert('✓ Connected to Supabase!');
+    if(error) return false;
     return true;
-  }catch(e){
-    if(!silent) alert('Connection failed: ' + e.message);
-    return false;
-  }
+  }catch{ return false; }
 }
 async function pushToCloud(){
   if(!supabaseClient) return;
@@ -945,16 +872,8 @@ async function savePapaPin(){
 }
 function copyPapaLink(){
   const el=document.getElementById('papaLink');
-  let txt=el.textContent;
+  const txt=el.textContent;
   if(!txt || txt.includes('please sign in')) return alert('Please sign in first');
-  // Include cloud config in link so phone can auto-connect
-  const cfg=getSbConfig();
-  if(cfg && cfg.url && cfg.key){
-    try{
-      const sb=btoa(JSON.stringify(cfg));
-      txt += (txt.includes('?')?'&':'?') + 'sb=' + encodeURIComponent(sb);
-    }catch{}
-  }
   navigator.clipboard.writeText(txt).then(()=>{ const b=document.querySelector('button[onclick="copyPapaLink()"]'); const o=b.textContent; b.textContent='Copied ✓'; setTimeout(()=>b.textContent=o,1500); }).catch(()=>{ prompt('Copy this link:', txt); });
 }
 

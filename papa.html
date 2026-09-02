@@ -122,22 +122,6 @@ td{padding:13px 16px;font-size:13px;border-bottom:1px solid #f0f0f2;vertical-ali
         <button type="submit" class="auth-btn" id="papaBtn">View Expenses →</button>
       </form>
       <div class="hint" style="margin-top:12px;text-align:center">Read-only access — viewing only, no modifications permitted</div>
-      <details style="margin-top:14px;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:10px 12px">
-        <summary style="font-size:11px;font-weight:700;cursor:pointer;color:var(--muted)">Having trouble? Connect cloud on this device</summary>
-        <div style="margin-top:10px">
-          <div class="field">
-            <label>Supabase URL</label>
-            <input type="text" id="papaSbUrl" placeholder="https://geabxhzofbvxejlsvmub.supabase.co">
-          </div>
-          <div class="field">
-            <label>Supabase Anon Key</label>
-            <input type="password" id="papaSbKey" placeholder="eyJhbG...">
-          </div>
-          <button type="button" class="auth-btn" style="padding:10px;font-size:12px" onclick="savePapaSbConfig()">Connect Cloud on this device</button>
-          <div class="hint" id="papaSbHint" style="margin-top:6px"></div>
-          <div class="hint" style="margin-top:6px">Paste the same URL + anon key used on the main site. This enables login on this phone.</div>
-        </div>
-      </details>
     </div>
     <div class="auth-foot">🔒 Secure read-only access • made by <b>mehta xd</b> ✨</div>
   </div>
@@ -307,46 +291,11 @@ function hash(s){ let h=0; for(let i=0;i<s.length;i++) h=Math.imul(31,h)+s.charC
 function getUsers(){ try{ return JSON.parse(localStorage.getItem(USERS_KEY)||'{}'); }catch{ return {}; } }
 function getPins(){ try{ return JSON.parse(localStorage.getItem(PAPA_PIN_KEY)||'{}'); }catch{ return {}; } }
 function setPins(p){ localStorage.setItem(PAPA_PIN_KEY, JSON.stringify(p)); }
-function getSbConfig(){ try{ return JSON.parse(localStorage.getItem(SB_CONFIG_KEY)||'null'); }catch{ return null; } }
-function savePapaSbConfig(){
-  const url=document.getElementById('papaSbUrl').value.trim().replace(/\/$/,'');
-  const key=document.getElementById('papaSbKey').value.trim();
-  if(!url || !key) return alert('Paste both Supabase URL and anon key');
-  localStorage.setItem(SB_CONFIG_KEY, JSON.stringify({url, key}));
-  if(url && key) supabaseClient=window.supabase.createClient(url, key);
-  const h=document.getElementById('papaSbHint');
-  h.textContent='Connecting…';
-  supabaseClient.from('app_users').select('username').limit(1).then(({error})=>{
-    if(error){
-      h.textContent='Failed: '+error.message;
-      h.style.color='#dc2626';
-    } else {
-      h.textContent='✓ Connected — now try login above';
-      h.style.color='#15803d';
-    }
-  }).catch(e=>{ h.textContent='Failed: '+e.message; h.style.color='#dc2626'; });
-}
+const SB_URL = 'https://geabxhzofbvxejlsvmub.supabase.co';
+const SB_KEY = 'sb_publishable_scTcUAVskpqnZTqBxUqDSw_jx1aJIwT';
+function getSbConfig(){ return { url: SB_URL, key: SB_KEY }; }
 (function initPapaSbUI(){
-  const cfg=getSbConfig();
-  if(cfg && cfg.url && cfg.key){
-    const uEl=document.getElementById('papaSbUrl');
-    const kEl=document.getElementById('papaSbKey');
-    if(uEl) uEl.value=cfg.url;
-    if(kEl) kEl.value=cfg.key;
-    try{ supabaseClient=window.supabase.createClient(cfg.url, cfg.key); }catch{}
-  }
-  // Also auto-fill from URL params if shared link has ?sb=...
-  try{
-    const params=new URLSearchParams(location.search);
-    const sb=params.get('sb');
-    if(sb){
-      const decoded=JSON.parse(atob(sb));
-      if(decoded.url && decoded.key){
-        localStorage.setItem(SB_CONFIG_KEY, JSON.stringify(decoded));
-        supabaseClient=window.supabase.createClient(decoded.url, decoded.key);
-      }
-    }
-  }catch{}
+  try{ supabaseClient=window.supabase.createClient(SB_URL, SB_KEY); }catch{}
 })();
 
 function showError(msg){
@@ -371,12 +320,10 @@ async function doPapaLogin(){
   let pins = getPins();
   let key = u.toLowerCase();
   let expected = pins[key];
-  // If not found locally, try cloud
+  // If not found locally, try cloud (auto-connected)
   if(!users[key] || !expected){
-    const cfg=getSbConfig();
-    if(cfg && cfg.url && cfg.key){
-      try{
-        if(!supabaseClient) supabaseClient = window.supabase.createClient(cfg.url, cfg.key);
+    try{
+      if(!supabaseClient) supabaseClient = window.supabase.createClient(SB_URL, SB_KEY);
         // Fetch user and PIN from cloud
         const [uRes, pRes] = await Promise.all([
           supabaseClient.from('app_users').select('username, pass').eq('username', key).single(),
@@ -399,7 +346,6 @@ async function doPapaLogin(){
       }catch(e){}
       users=getUsers(); pins=getPins(); expected=pins[key];
     }
-  }
   if(btn){ btn.disabled=false; btn.textContent='View Expenses →'; }
   if(!users[key]) return showError('No account found with that username — please check and try again');
   if(!expected) return showError('View access is not yet configured for this account — please set up a PIN on the main portal first');
