@@ -304,6 +304,31 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
+  <!-- Papa View PIN -->
+  <div class="card" style="margin-bottom:14px;border:1px solid #c8e6c9;background:linear-gradient(180deg,#f0faf9 0%, #fff 100%)">
+    <div class="card-head">
+      <h3>👨‍👧 Papa Portal — View Only</h3>
+      <p>Share with papa — he can only view, not edit</p>
+    </div>
+    <div class="card-pad">
+      <div style="display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end">
+        <div class="field" style="margin:0">
+          <label>Papa View PIN (set a 4-digit PIN for papa)</label>
+          <input type="password" id="papaPinSet" placeholder="e.g. 1234" maxlength="20" autocomplete="off">
+        </div>
+        <button class="btn-primary" style="padding:11px 18px;white-space:nowrap" onclick="savePapaPin()">Save PIN</button>
+      </div>
+      <div class="hint" id="papaPinHint" style="margin-top:8px"></div>
+      <div style="margin-top:10px;background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:12px;font-weight:700">Papa link:</span>
+        <code id="papaLink" style="font-size:11px;background:#fff;border:1px solid var(--border);padding:6px 10px;border-radius:8px;flex:1;min-width:180px;overflow:auto;white-space:nowrap">— login first —</code>
+        <button class="btn-ghost" style="padding:6px 12px;font-size:11px" onclick="copyPapaLink()">Copy</button>
+        <a id="papaOpen" href="papa.html" target="_blank" class="btn-ghost" style="padding:6px 12px;font-size:11px;text-decoration:none;color:inherit;display:inline-block">Open</a>
+      </div>
+      <div class="hint" style="margin-top:8px">Papa ko ye link + tumhara <b>username</b> + <b>PIN</b> dena hai. Wo sirf dekh payenge — add/edit/delete nahi.</div>
+    </div>
+  </div>
+
   <div class="month-bar" style="margin-bottom:14px">
     <span style="font-size:13px;font-weight:700">📅 Month</span>
     <input type="month" id="monthPicker">
@@ -617,6 +642,7 @@ function enterApp(){
   initMonth();
   loadMonth();
   initSupabaseUI();
+  initPapaPinUI();
   // try cloud pull
   pullFromCloud().then(()=>{ updateAll(); });
 }
@@ -804,6 +830,43 @@ const fmtDate = iso => {
   return d.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'});
 };
 const monthKey = d => d.slice(0,7);
+
+// ===== PAPA PIN =====
+const PAPA_PIN_KEY = 'et_papa_pins_v1';
+function getPapaPins(){ try{ return JSON.parse(localStorage.getItem(PAPA_PIN_KEY)||'{}'); }catch{ return {}; } }
+function setPapaPins(p){ localStorage.setItem(PAPA_PIN_KEY, JSON.stringify(p)); }
+function initPapaPinUI(){
+  const u = (getSession()||'').toLowerCase();
+  const pins=getPapaPins();
+  const has = !!(u && pins[u]);
+  const hint=document.getElementById('papaPinHint');
+  const linkEl=document.getElementById('papaLink');
+  const openEl=document.getElementById('papaOpen');
+  const base = location.origin + location.pathname.replace(/index\.html$/,'') + 'papa.html';
+  if(linkEl) linkEl.textContent = base;
+  if(openEl) openEl.href = 'papa.html';
+  if(!u){ if(hint) hint.textContent='Login first to set PIN'; return; }
+  if(hint) hint.textContent = has ? '✓ PIN set — share username "'+(getSession()||'')+'" + PIN with papa' : 'No PIN yet — set one above';
+}
+function savePapaPin(){
+  const u=(getSession()||'').toLowerCase();
+  if(!u) return alert('Login first');
+  const pin=document.getElementById('papaPinSet').value;
+  if(!pin || pin.length<3) return alert('PIN must be at least 3 characters');
+  const pins=getPapaPins();
+  pins[u]=hash(pin);
+  setPapaPins(pins);
+  document.getElementById('papaPinSet').value='';
+  initPapaPinUI();
+  const h=document.getElementById('papaPinHint');
+  const t=h.textContent; h.textContent='✓ PIN saved! Share it with papa'; setTimeout(()=>{ h.textContent=t; initPapaPinUI(); }, 2500);
+}
+function copyPapaLink(){
+  const el=document.getElementById('papaLink');
+  const txt=el.textContent;
+  if(!txt || txt.includes('login first')) return alert('Login first');
+  navigator.clipboard.writeText(txt).then(()=>{ const b=document.querySelector('button[onclick="copyPapaLink()"]'); const o=b.textContent; b.textContent='Copied ✓'; setTimeout(()=>b.textContent=o,1500); }).catch(()=>{ prompt('Copy this link:', txt); });
+}
 
 function storeKey(){
   const u = (getSession()||Object.values(getUsers())[0]?.user||'default').toLowerCase();
