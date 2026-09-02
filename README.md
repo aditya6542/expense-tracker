@@ -1,33 +1,42 @@
 # Expense Tracker — Deploy to Vercel
 
-Static site — no backend needed. Login is handled in the browser (per-device).
+Static site + free cloud sync (Supabase free tier). Login works on any device after setup.
 
-## Deploy in 2 minutes
+## Deploy to Vercel (2 min)
 
-### Option A — Vercel Dashboard (easiest)
+### Option A — Dashboard (easiest)
 1. Go to https://vercel.com/new
-2. Click **Add New → Project → Browse** and upload / drag the `Expense_Tracker` folder
-   - Or push this folder to GitHub first, then **Import Git Repository**
-3. Framework Preset: **Other** (it's a static site)
-4. Click **Deploy** — done. You'll get a `https://your-project.vercel.app` URL.
+2. **Import Git Repository** → select `expense-tracker`
+3. Framework Preset: **Other** → **Deploy**
 
-### Option B — Vercel CLI
+### Option B — CLI
 ```bash
 npm i -g vercel
 cd Expense_Tracker
-vercel        # follow prompts
-vercel --prod # deploy to production
+vercel
+vercel --prod
 ```
 
 ## Login
-- First visit shows **Create Account** — pick a username + password (stored locally in the browser).
-- Next visits show **Sign In**.
-- Data is stored **per account** in `localStorage` (key `expense_tracker_v2_<username>`), so each username has its own months/expenses.
-- **Logout** is in the top bar. Clearing browser site data resets the account.
+- First visit: **Create Account** (username + password) — now supports unlimited users (fixed bug).
+- Next visits: **Sign In** — same username + password on any device.
+- Data is per account (`expense_tracker_v2_<username>`). Logout does NOT delete data.
+- Credit: **made by mehta xd ✨** shown on login screen.
 
-> Note: This is a client-side login (no server). It's great for a personal / family tracker on Vercel. For real multi-user auth, add Vercel Auth / Supabase / Firebase later — the UI is ready for it.
+## Free Cloud Sync (Supabase — 100% free)
+
+Without this, data stays per-browser (localStorage). With it, same login → same data on phone + laptop.
+
+1. Go to https://supabase.com → Sign up (free) → **New Project** (free tier)
+2. Project → **Settings → API** → copy **URL** and **anon public key**
+3. In Supabase: **SQL Editor → New query** → paste contents of `supabase-setup.sql` → **Run**
+4. Open your deployed site → login → in the **☁️ Cloud Sync** card, paste URL + anon key → **Connect & Sync**
+5. Done — every change auto-syncs. Login from another device with same credentials → data appears.
+
+> Free tier limits are generous for personal use. No credit card needed for Supabase free tier.
 
 ## Files
-- `index.html` — the whole app (auth + tracker)
-- `vercel.json` — Vercel config (clean URLs + security headers)
-- `Expense Tracker.html` — original standalone file (kept for local use)
+- `index.html` — app (auth + tracker + Supabase sync)
+- `supabase-setup.sql` — run once in Supabase SQL Editor
+- `vercel.json` — Vercel config
+- `Expense Tracker.html` — original standalone (local use)

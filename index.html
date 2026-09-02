@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Expense Tracker — Mac</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -28,8 +29,6 @@
 body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased;line-height:1.5}
 button{font-family:inherit}
 input,select,textarea{font-family:inherit}
-
-/* Auth */
 .auth-wrap{
   min-height:100vh;
   display:grid;place-items:center;
@@ -48,10 +47,7 @@ input,select,textarea{font-family:inherit}
   box-shadow:0 20px 60px rgba(0,0,0,0.10), 0 1px 3px rgba(0,0,0,0.06);
   overflow:hidden;
 }
-.auth-head{
-  padding:28px 28px 0 28px;
-  text-align:center;
-}
+.auth-head{padding:28px 28px 0 28px;text-align:center}
 .auth-logo{
   width:56px;height:56px;border-radius:16px;
   background:linear-gradient(135deg,#0a0a0a 0%,#2c2c2e 100%);
@@ -76,27 +72,40 @@ input,select,textarea{font-family:inherit}
   padding:10px 12px;border-radius:12px;font-size:12px;font-weight:600;margin-bottom:12px;
 }
 .auth-error.show{display:block}
+.auth-success{
+  display:none;
+  background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;
+  padding:10px 12px;border-radius:12px;font-size:12px;font-weight:600;margin-bottom:12px;
+}
+.auth-success.show{display:block}
 .auth-btn{
   width:100%;padding:13px;border-radius:12px;border:none;
   background:var(--text);color:#fff;font-size:14px;font-weight:700;cursor:pointer;
   transition:.15s;
 }
 .auth-btn:hover{background:#000}
+.auth-btn:active{transform:scale(0.98)}
 .auth-btn.secondary{background:var(--accent)}
 .auth-btn.secondary:hover{background:var(--accent2)}
-.auth-switch{
-  text-align:center;margin-top:14px;font-size:12px;color:var(--muted);font-weight:500;
-}
-.auth-switch button{
-  background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-size:12px;
-}
+.auth-btn:disabled{opacity:0.6;cursor:not-allowed;transform:none}
+.auth-switch{text-align:center;margin-top:14px;font-size:12px;color:var(--muted);font-weight:500}
+.auth-switch button{background:none;border:none;color:var(--accent);font-weight:700;cursor:pointer;font-size:12px}
 .auth-switch button:hover{text-decoration:underline}
 .auth-foot{padding:14px 28px;background:var(--card2);border-top:1px solid var(--border);text-align:center;font-size:11px;color:var(--muted2)}
+.made-by{
+  margin-top:14px;
+  text-align:center;
+  font-size:12px;font-weight:700;letter-spacing:0.04em;
+  color:var(--muted);
+}
+.made-by span{
+  background:var(--text);color:#fff;
+  padding:3px 8px;border-radius:999px;
+  font-weight:800;letter-spacing:0.02em;
+}
 .auth-tabs{display:flex;gap:8px;justify-content:center;margin:16px 0 0}
 .auth-tab{padding:7px 14px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid var(--border);background:var(--card2);cursor:pointer}
 .auth-tab.active{background:var(--text);color:#fff;border-color:var(--text)}
-
-/* Titlebar */
 .titlebar{height:52px;background:rgba(255,255,255,0.85);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:0 20px;position:sticky;top:0;z-index:20}
 .dots{display:flex;gap:8px}
 .dot{width:12px;height:12px;border-radius:50%}
@@ -183,26 +192,31 @@ tr:last-child td{border-bottom:none}
 .income-card{border:1px dashed #b2dfdb;background:linear-gradient(180deg,#f0faf9 0%, #ffffff 100%)}
 #app{ display:none; }
 #auth{ display:grid; }
+.sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.sync-dot.on{background:#34c759;box-shadow:0 0 8px rgba(52,199,89,0.6)}
+.sync-dot.off{background:#ff3b30}
 </style>
 </head>
 <body>
 
 <!-- AUTH -->
 <div id="auth" class="auth-wrap">
+  <div style="width:100%;max-width:420px">
   <div class="auth-card">
     <div class="auth-head">
       <div class="auth-logo">💰</div>
       <h1 id="authTitle">Welcome back</h1>
       <p id="authSub">Sign in to your expense tracker</p>
       <div class="auth-tabs">
-        <button class="auth-tab active" id="tabLogin" onclick="switchAuth('login')">Sign In</button>
-        <button class="auth-tab" id="tabSignup" onclick="switchAuth('signup')">Create Account</button>
+        <button type="button" class="auth-tab active" id="tabLogin" onclick="switchAuth('login')">Sign In</button>
+        <button type="button" class="auth-tab" id="tabSignup" onclick="switchAuth('signup')">Create Account</button>
       </div>
     </div>
     <div class="auth-body">
       <div id="authError" class="auth-error"></div>
+      <div id="authSuccess" class="auth-success"></div>
 
-      <div id="loginForm">
+      <form id="loginForm" onsubmit="event.preventDefault(); doLogin();">
         <div class="field">
           <label>Username</label>
           <input type="text" id="loginUser" placeholder="your username" autocomplete="username">
@@ -211,11 +225,11 @@ tr:last-child td{border-bottom:none}
           <label>Password</label>
           <input type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password">
         </div>
-        <button class="auth-btn" onclick="doLogin()">Sign In →</button>
-        <div class="auth-switch">No account? <button onclick="switchAuth('signup')">Create one</button></div>
-      </div>
+        <button type="submit" class="auth-btn" id="loginBtn">Sign In →</button>
+        <div class="auth-switch">No account? <button type="button" onclick="switchAuth('signup')">Create one</button></div>
+      </form>
 
-      <div id="signupForm" style="display:none">
+      <form id="signupForm" style="display:none" onsubmit="event.preventDefault(); doSignup();">
         <div class="field">
           <label>Choose Username</label>
           <input type="text" id="signupUser" placeholder="e.g. mehta" autocomplete="username">
@@ -228,11 +242,13 @@ tr:last-child td{border-bottom:none}
           <label>Confirm Password</label>
           <input type="password" id="signupConfirm" placeholder="repeat password" autocomplete="new-password">
         </div>
-        <button class="auth-btn secondary" onclick="doSignup()">Create Account →</button>
-        <div class="auth-switch">Already have an account? <button onclick="switchAuth('login')">Sign in</button></div>
-      </div>
+        <button type="submit" class="auth-btn secondary" id="signupBtn">Create Account →</button>
+        <div class="auth-switch">Already have an account? <button type="button" onclick="switchAuth('login')">Sign in</button></div>
+      </form>
     </div>
-    <div class="auth-foot">🔒 Your data stays in your browser — private & offline. Deploy on Vercel in one click.</div>
+    <div class="auth-foot">🔒 Your data stays in your browser — private & offline. Add free cloud sync below to use on any device.</div>
+  </div>
+  <div class="made-by">made by <span>mehta xd</span> ✨</div>
   </div>
 </div>
 
@@ -250,6 +266,43 @@ tr:last-child td{border-bottom:none}
 </div>
 
 <div class="wrap">
+
+  <!-- Cloud Sync Banner (FREE - Supabase) -->
+  <div class="card" id="syncCard" style="margin-bottom:14px;border:1px solid #d1e7ff;background:linear-gradient(180deg,#f0f7ff 0%, #ffffff 100%)">
+    <div class="card-head">
+      <h3>☁️ Cloud Sync — Free (Supabase)</h3>
+      <p><span class="sync-dot off" id="syncDot"></span> <span id="syncStatus">Not connected — local only</span></p>
+    </div>
+    <div class="card-pad">
+      <div class="hint" style="margin-bottom:10px">Connect free Supabase to sync your data across devices. Same login → same data everywhere. 100% free tier.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="field">
+          <label>Supabase URL</label>
+          <input type="text" id="sbUrl" placeholder="https://xyz.supabase.co">
+        </div>
+        <div class="field">
+          <label>Supabase Anon Key</label>
+          <input type="password" id="sbKey" placeholder="eyJhbG...">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="btn-primary" onclick="saveSupabaseConfig()">Connect & Sync</button>
+        <button class="btn-ghost" onclick="testSupabase()">Test</button>
+        <button class="btn-ghost" onclick="clearSupabaseConfig()">Disconnect</button>
+        <span class="hint" id="syncHint" style="align-self:center"></span>
+      </div>
+      <details style="margin-top:10px">
+        <summary style="font-size:12px;font-weight:700;cursor:pointer;color:var(--accent)">How to get free Supabase? (30 sec)</summary>
+        <ol style="font-size:12px;color:var(--muted);margin:8px 0 0 18px;line-height:1.7">
+          <li>Go to <a href="https://supabase.com" target="_blank">supabase.com</a> → Sign up (free)</li>
+          <li>Create new project (free tier)</li>
+          <li>Project → Settings → API → copy <b>URL</b> and <b>anon public key</b></li>
+          <li>Paste above → Connect & Sync</li>
+          <li>Run SQL in <b>supabase-setup.sql</b> (in repo) once in Supabase SQL Editor</li>
+        </ol>
+      </details>
+    </div>
+  </div>
 
   <div class="month-bar" style="margin-bottom:14px">
     <span style="font-size:13px;font-weight:700">📅 Month</span>
@@ -313,10 +366,10 @@ tr:last-child td{border-bottom:none}
         <div class="field" style="margin-top:12px">
           <label>Payment Mode — default is Online</label>
           <div class="pill-row" id="payRow">
-            <button class="pill active" data-pay="Online">🌐 Online</button>
-            <button class="pill" data-pay="UPI">📱 UPI</button>
-            <button class="pill" data-pay="Card">💳 Card</button>
-            <button class="pill" data-pay="Cash">💵 Cash</button>
+            <button type="button" class="pill active" data-pay="Online">🌐 Online</button>
+            <button type="button" class="pill" data-pay="UPI">📱 UPI</button>
+            <button type="button" class="pill" data-pay="Card">💳 Card</button>
+            <button type="button" class="pill" data-pay="Cash">💵 Cash</button>
           </div>
         </div>
         <div class="field" style="margin-top:12px">
@@ -440,7 +493,7 @@ tr:last-child td{border-bottom:none}
   </div>
 
   <div class="foot">
-    <span>🔒 Data is stored per account in your browser — private & offline.</span>
+    <span>🔒 Data is per account — <span id="footSync">local only</span> • made by <b>mehta xd</b> ✨</span>
     <span style="display:flex;gap:8px">
       <button class="btn-ghost" style="padding:6px 10px;font-size:11px" onclick="importJSON()">Import Backup</button>
       <button class="btn-ghost" style="padding:6px 10px;font-size:11px;color:var(--red);border-color:#fecaca" onclick="clearMonth()">Clear Month</button>
@@ -452,34 +505,59 @@ tr:last-child td{border-bottom:none}
 <input type="file" id="fileInput" accept=".json" style="display:none">
 
 <script>
-// ===== AUTH =====
-const AUTH_KEY = 'et_auth_v1';
+// ===== AUTH (multi-user, fixed) =====
+const USERS_KEY = 'et_users_v1';
 const SESSION_KEY = 'et_session_v1';
+const LEGACY_AUTH_KEY = 'et_auth_v1';
 
 function hash(s){
-  // simple hash for client-side demo (not for production secrets)
   let h=0; for(let i=0;i<s.length;i++) h = Math.imul(31,h) + s.charCodeAt(i) |0;
   return btoa(String(h) + '|' + s.length + '|' + s);
 }
-function getAuth(){ try{ return JSON.parse(localStorage.getItem(AUTH_KEY)||'null'); }catch{ return null; } }
-function setAuth(a){ localStorage.setItem(AUTH_KEY, JSON.stringify(a)); }
-function getSession(){ try{ return sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY); }catch{ return null; } }
-function setSession(u){
-  try{ sessionStorage.setItem(SESSION_KEY, u); localStorage.setItem(SESSION_KEY, u); }catch{}
+function getUsers(){
+  try{
+    const raw = localStorage.getItem(USERS_KEY);
+    if(raw) return JSON.parse(raw);
+    // migrate legacy single user
+    const legacy = localStorage.getItem(LEGACY_AUTH_KEY);
+    if(legacy){
+      const a = JSON.parse(legacy);
+      if(a && a.user && a.pass){
+        const m = {}; m[a.user.toLowerCase()] = {user:a.user, pass:a.pass};
+        localStorage.setItem(USERS_KEY, JSON.stringify(m));
+        return m;
+      }
+    }
+    return {};
+  }catch{ return {}; }
 }
+function setUsers(u){ localStorage.setItem(USERS_KEY, JSON.stringify(u)); }
+function getSession(){ try{ return sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY); }catch{ return null; } }
+function setSession(u){ try{ sessionStorage.setItem(SESSION_KEY, u); localStorage.setItem(SESSION_KEY, u); }catch{} }
 function clearSession(){ try{ sessionStorage.removeItem(SESSION_KEY); localStorage.removeItem(SESSION_KEY); }catch{} }
 
 function showError(msg){
   const el = document.getElementById('authError');
+  const s = document.getElementById('authSuccess');
+  if(s) s.classList.remove('show');
   el.textContent = msg;
   el.classList.add('show');
 }
-function clearError(){
-  const el = document.getElementById('authError');
-  el.textContent=''; el.classList.remove('show');
+function showSuccess(msg){
+  const el = document.getElementById('authSuccess');
+  const e = document.getElementById('authError');
+  if(e) e.classList.remove('show');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+function clearMessages(){
+  const e = document.getElementById('authError');
+  const s = document.getElementById('authSuccess');
+  if(e){ e.textContent=''; e.classList.remove('show'); }
+  if(s){ s.textContent=''; s.classList.remove('show'); }
 }
 function switchAuth(mode){
-  clearError();
+  clearMessages();
   const isLogin = mode==='login';
   document.getElementById('loginForm').style.display = isLogin ? '' : 'none';
   document.getElementById('signupForm').style.display = isLogin ? 'none' : '';
@@ -489,7 +567,7 @@ function switchAuth(mode){
   document.getElementById('authSub').textContent = isLogin ? 'Sign in to your expense tracker' : 'Set a username & password to get started';
 }
 function doSignup(){
-  clearError();
+  clearMessages();
   const u = document.getElementById('signupUser').value.trim();
   const p = document.getElementById('signupPass').value;
   const c = document.getElementById('signupConfirm').value;
@@ -497,67 +575,211 @@ function doSignup(){
   if(!/^[a-zA-Z0-9._-]+$/.test(u)) return showError('Username: letters, numbers, dot, _ and - only.');
   if(!p || p.length<4) return showError('Password must be at least 4 characters.');
   if(p!==c) return showError('Passwords do not match.');
-  const existing = getAuth();
-  if(existing && existing.user.toLowerCase()===u.toLowerCase()) return showError('Username already exists — please sign in.');
-  // For this single-user demo we store one account. Multi-user can be added later.
-  if(existing) return showError('An account already exists on this device. Sign in, or clear site data to create a new one.');
-  setAuth({user:u, pass:hash(p)});
+  const users = getUsers();
+  const key = u.toLowerCase();
+  if(users[key]) return showError('Username already exists — please sign in with that username.');
+  users[key] = {user:u, pass:hash(p)};
+  setUsers(users);
   setSession(u);
-  enterApp();
+  showSuccess('Account created! Logging you in…');
+  setTimeout(enterApp, 400);
 }
 function doLogin(){
-  clearError();
+  clearMessages();
   const u = document.getElementById('loginUser').value.trim();
   const p = document.getElementById('loginPass').value;
-  const a = getAuth();
-  if(!a) return showError('No account found — create one first.');
-  if(a.user.toLowerCase()!==u.toLowerCase() || a.pass!==hash(p)) return showError('Wrong username or password.');
-  setSession(a.user);
+  if(!u || !p) return showError('Enter username and password.');
+  const users = getUsers();
+  const key = u.toLowerCase();
+  const acc = users[key];
+  if(!acc) return showError('No account found with that username — create one first.');
+  if(acc.pass!==hash(p)) return showError('Wrong password.');
+  setSession(acc.user);
   enterApp();
 }
 function doLogout(){
   clearSession();
   document.getElementById('app').style.display='none';
   document.getElementById('auth').style.display='grid';
-  switchAuth('login');
-  document.getElementById('loginUser').value = (getAuth()?.user||'');
+  const users = getUsers();
+  const last = getSession() || Object.values(users)[0]?.user || '';
+  switchAuth(Object.keys(users).length ? 'login' : 'signup');
+  if(last) document.getElementById('loginUser').value = last;
   document.getElementById('loginPass').value='';
 }
 function enterApp(){
   document.getElementById('auth').style.display='none';
   document.getElementById('app').style.display='block';
-  const u = getSession() || getAuth()?.user || '—';
+  const u = getSession() || Object.values(getUsers())[0]?.user || '—';
   document.getElementById('userName').textContent = u;
   document.getElementById('userInitial').textContent = (u[0]||'U').toUpperCase();
-  // init app data after login
   initCats();
   initMonth();
   loadMonth();
+  initSupabaseUI();
+  // try cloud pull
+  pullFromCloud().then(()=>{ updateAll(); });
 }
 (function boot(){
-  const a = getAuth();
+  const users = getUsers();
   const s = getSession();
-  // if already logged in, go straight to app
-  if(a && s && s.toLowerCase()===a.user.toLowerCase()){
-    // need DOM ready
+  const hasSession = s && users[s.toLowerCase()];
+  if(hasSession){
     if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', enterApp);
     else enterApp();
   } else {
-    if(a){
+    if(Object.keys(users).length){
       switchAuth('login');
-      setTimeout(()=>{ document.getElementById('loginUser').value = a.user; }, 0);
+      const last = s || Object.values(users)[0]?.user || '';
+      setTimeout(()=>{ const el=document.getElementById('loginUser'); if(el) el.value = last; }, 0);
     } else {
       switchAuth('signup');
     }
-    // enter on Enter key
-    document.addEventListener('keydown', e=>{
-      if(e.key==='Enter' && document.getElementById('auth').style.display!=='none'){
-        const loginVisible = document.getElementById('loginForm').style.display!=='none';
-        if(loginVisible) doLogin(); else doSignup();
-      }
-    });
   }
 })();
+
+// ===== SUPABASE FREE BACKEND =====
+let supabaseClient = null;
+const SB_CONFIG_KEY = 'et_supabase_config_v1';
+
+function getSbConfig(){
+  try{ return JSON.parse(localStorage.getItem(SB_CONFIG_KEY)||'null'); }catch{ return null; }
+}
+function initSupabaseUI(){
+  const cfg = getSbConfig();
+  if(cfg){
+    document.getElementById('sbUrl').value = cfg.url || '';
+    document.getElementById('sbKey').value = cfg.key || '';
+    initSupabaseClient(cfg.url, cfg.key);
+  }
+  updateSyncStatus();
+}
+function initSupabaseClient(url, key){
+  try{
+    if(!url || !key) return null;
+    supabaseClient = window.supabase.createClient(url, key);
+    return supabaseClient;
+  }catch(e){ console.error(e); return null; }
+}
+function updateSyncStatus(){
+  const dot = document.getElementById('syncDot');
+  const st = document.getElementById('syncStatus');
+  const foot = document.getElementById('footSync');
+  const hint = document.getElementById('syncHint');
+  const cfg = getSbConfig();
+  if(supabaseClient && cfg){
+    dot.className='sync-dot on';
+    st.textContent='Connected — syncing to cloud';
+    if(foot) foot.textContent='cloud sync on';
+    if(hint) hint.textContent='✓ Connected';
+  } else {
+    dot.className='sync-dot off';
+    st.textContent='Not connected — local only';
+    if(foot) foot.textContent='local only';
+    if(hint) hint.textContent='';
+  }
+}
+async function saveSupabaseConfig(){
+  const url = document.getElementById('sbUrl').value.trim().replace(/\/$/,'');
+  const key = document.getElementById('sbKey').value.trim();
+  if(!url || !key) return alert('Paste both Supabase URL and anon key');
+  if(!url.startsWith('https://')) return alert('URL should start with https://');
+  localStorage.setItem(SB_CONFIG_KEY, JSON.stringify({url, key}));
+  initSupabaseClient(url, key);
+  updateSyncStatus();
+  document.getElementById('syncHint').textContent='Connecting…';
+  const ok = await testSupabase(true);
+  if(ok){
+    await pushToCloud();
+    await pullFromCloud();
+    updateAll();
+    document.getElementById('syncHint').textContent='✓ Synced!';
+    setTimeout(()=>document.getElementById('syncHint').textContent='✓ Connected', 2000);
+  }
+}
+function clearSupabaseConfig(){
+  if(!confirm('Disconnect cloud sync? Local data will stay.')) return;
+  localStorage.removeItem(SB_CONFIG_KEY);
+  supabaseClient=null;
+  updateSyncStatus();
+  document.getElementById('sbUrl').value='';
+  document.getElementById('sbKey').value='';
+}
+async function testSupabase(silent){
+  const cfg = getSbConfig();
+  if(!cfg || !supabaseClient){
+    if(!silent) alert('Not connected — paste URL and key first');
+    return false;
+  }
+  try{
+    const { error } = await supabaseClient.from('expense_data').select('username').limit(1);
+    if(error){
+      if(error.message.includes('does not exist') || error.code==='42P01'){
+        if(!silent) alert('Table not found — run supabase-setup.sql in Supabase SQL Editor first');
+      } else {
+        if(!silent) alert('Connection failed: ' + error.message);
+      }
+      return false;
+    }
+    if(!silent) alert('✓ Connected to Supabase!');
+    return true;
+  }catch(e){
+    if(!silent) alert('Connection failed: ' + e.message);
+    return false;
+  }
+}
+async function pushToCloud(){
+  if(!supabaseClient) return;
+  const u = (getSession()||'').toLowerCase();
+  if(!u) return;
+  const data = loadStore();
+  try{
+    const { error } = await supabaseClient.from('expense_data').upsert({
+      username: u,
+      data: data,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'username' });
+    if(error) console.warn('push failed', error);
+  }catch(e){ console.warn(e); }
+}
+async function pullFromCloud(){
+  if(!supabaseClient) return;
+  const u = (getSession()||'').toLowerCase();
+  if(!u) return;
+  try{
+    const { data, error } = await supabaseClient.from('expense_data').select('data').eq('username', u).single();
+    if(error){
+      if(error.code==='PGRST116') return; // no row yet
+      console.warn('pull failed', error);
+      return;
+    }
+    if(data && data.data){
+      // merge: if cloud has data and local is empty, use cloud; if both have data, prefer newer? For now, if cloud has more months, use cloud
+      const local = loadStore();
+      const cloud = data.data;
+      const localKeys = Object.keys(local).length;
+      const cloudKeys = Object.keys(cloud).length;
+      // if cloud has data and local is empty, or cloud is larger, adopt cloud
+      // otherwise keep local but don't overwrite
+      if(localKeys===0 && cloudKeys>0){
+        saveStore(cloud);
+      } else if(cloudKeys>0){
+        // smart merge: union of months, keep max per month (by updated count)
+        const merged = {...local};
+        for(const k of Object.keys(cloud)){
+          if(!merged[k]) merged[k]=cloud[k];
+          else {
+            // if cloud month has more entries, prefer cloud
+            const lc = (merged[k].expenses?.length||0)+(merged[k].incomes?.length||0);
+            const cc = (cloud[k].expenses?.length||0)+(cloud[k].incomes?.length||0);
+            if(cc>lc) merged[k]=cloud[k];
+          }
+        }
+        saveStore(merged);
+      }
+    }
+  }catch(e){ console.warn(e); }
+}
 
 // ===== TRACKER =====
 const CATEGORIES = [
@@ -584,13 +806,20 @@ const fmtDate = iso => {
 const monthKey = d => d.slice(0,7);
 
 function storeKey(){
-  const u = (getSession()||getAuth()?.user||'default').toLowerCase();
+  const u = (getSession()||Object.values(getUsers())[0]?.user||'default').toLowerCase();
   return 'expense_tracker_v2_' + u;
 }
 function loadStore(){
   try{ return JSON.parse(localStorage.getItem(storeKey())||'{}'); }catch{ return {}; }
 }
-function saveStore(s){ localStorage.setItem(storeKey(), JSON.stringify(s)); }
+function saveStore(s){
+  localStorage.setItem(storeKey(), JSON.stringify(s));
+  // auto push to cloud (debounced)
+  if(supabaseClient) {
+    clearTimeout(saveStore._t);
+    saveStore._t = setTimeout(pushToCloud, 800);
+  }
+}
 function getMonthData(key){
   const s = loadStore();
   if(!s[key]) s[key] = {startingBalance:0, expenses:[], incomes:[]};
@@ -608,7 +837,7 @@ function initCats(){
   const grid = $('#catGrid');
   if(!grid) return;
   grid.innerHTML = CATEGORIES.map(c=>`
-    <button class="cat-chip ${c.id===selectedCat?'active':''}" data-cat="${c.id}" onclick="pickCat('${c.id}')">
+    <button type="button" class="cat-chip ${c.id===selectedCat?'active':''}" data-cat="${c.id}" onclick="pickCat('${c.id}')">
       <span>${c.icon}</span> ${c.label}
     </button>
   `).join('');
@@ -621,34 +850,41 @@ function pickCat(id){
     b.classList.toggle('active', b.dataset.cat===id);
   });
 }
-document.querySelectorAll('.pill').forEach(p=>{
-  p.addEventListener('click', ()=>{
-    document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));
-    p.classList.add('active');
-    selectedPay = p.dataset.pay;
+function initPills(){
+  document.querySelectorAll('.pill').forEach(p=>{
+    p.addEventListener('click', ()=>{
+      document.querySelectorAll('.pill').forEach(x=>x.classList.remove('active'));
+      p.classList.add('active');
+      selectedPay = p.dataset.pay;
+    });
   });
-});
+}
 
 function initMonth(){
   const now = new Date();
   const key = now.toISOString().slice(0,7);
   const mp = $('#monthPicker');
   if(!mp) return;
-  mp.value = key;
-  $('#date').valueAsDate = now;
-  $('#incomeDate').valueAsDate = now;
+  if(!mp.value) mp.value = key;
+  const dEl = $('#date');
+  const iEl = $('#incomeDate');
+  if(dEl && !dEl.value) dEl.valueAsDate = now;
+  if(iEl && !iEl.value) iEl.valueAsDate = now;
   mp.addEventListener('change', ()=>{
     const mk = $('#monthPicker').value;
     $('#date').value = mk + '-15';
     $('#incomeDate').value = mk + '-15';
     loadMonth();
   });
-  $('#amount').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addExpense(); }});
-  $('#incomeAmount').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addIncome(); }});
+  const aEl = $('#amount');
+  const iaEl = $('#incomeAmount');
+  if(aEl) aEl.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addExpense(); }});
+  if(iaEl) iaEl.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); addIncome(); }});
 }
 
 function loadMonth(){
   const mk = $('#monthPicker').value;
+  if(!mk) return;
   const data = getMonthData(mk);
   $('#startingBalance').value = data.startingBalance || '';
   updateAll();
@@ -996,11 +1232,16 @@ document.getElementById('fileInput').addEventListener('change', e=>{
       localStorage.setItem(storeKey(), JSON.stringify(obj));
       alert('Backup imported ✓');
       loadMonth();
+      pushToCloud();
     }catch{ alert('Invalid backup file'); }
   };
   r.readAsText(f);
   e.target.value='';
 });
+
+// init pills after DOM
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', initPills);
+else initPills();
 </script>
 </body>
 </html>
