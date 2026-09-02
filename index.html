@@ -228,6 +228,33 @@ tr:last-child td{border-bottom:none}
 .income-card{border:1px dashed #b2dfdb;background:linear-gradient(180deg,#f0faf9 0%, #ffffff 100%)}
 #app{ display:none; }
 #auth{ display:grid; }
+/* Category detail modal */
+.cat-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;z-index:100;padding:16px}
+.cat-modal-overlay.open{display:flex}
+.cat-modal{width:100%;max-width:480px;max-height:85vh;max-height:85dvh;background:var(--card);border:1px solid var(--border);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,0.15);overflow:hidden;display:flex;flex-direction:column;animation:catPop .2s ease}
+@keyframes catPop{ from{transform:scale(0.96);opacity:0} to{transform:scale(1);opacity:1} }
+.cat-modal-head{padding:18px 18px 14px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border);flex-shrink:0}
+.cat-modal-head .cat-icon{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:20px;flex-shrink:0}
+.cat-modal-head h3{font-size:15px;font-weight:800;letter-spacing:-0.02em}
+.cat-modal-head p{font-size:11px;color:var(--muted);font-weight:500;margin-top:2px}
+.cat-modal-close{margin-left:auto;width:32px;height:32px;border-radius:10px;border:1px solid var(--border);background:var(--card2);display:grid;place-items:center;cursor:pointer;font-size:14px;flex-shrink:0}
+.cat-modal-body{overflow:auto;padding:14px 18px 18px;flex:1}
+.cat-modal-stat{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.cat-modal-stat div{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+.cat-modal-stat label{font-size:10px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted);display:block}
+.cat-modal-stat span{font-size:16px;font-weight:800;letter-spacing:-0.02em;margin-top:4px;display:block}
+.cat-modal-list{display:grid;gap:8px}
+.cat-modal-item{background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.cat-modal-item .amt{font-size:14px;font-weight:800;white-space:nowrap}
+.cat-modal-item .meta{flex:1;min-width:0}
+.cat-modal-item .meta div{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cat-modal-item .meta small{font-size:11px;color:var(--muted)}
+.cat-modal-item .note{font-size:11px;color:var(--text);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 8px;margin-top:6px;word-break:break-word}
+@media(max-width:600px){
+  .cat-modal{max-width:100%;border-radius:16px}
+  .cat-modal-head{padding:14px}
+  .cat-modal-body{padding:12px 14px 14px}
+}
 .sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
 .sync-dot.on{background:#34c759;box-shadow:0 0 8px rgba(52,199,89,0.6)}
 .sync-dot.off{background:#ff3b30}
@@ -533,6 +560,27 @@ tr:last-child td{border-bottom:none}
     </span>
   </div>
 </div>
+</div>
+
+<!-- Category Detail Modal -->
+<div class="cat-modal-overlay" id="catModal" onclick="if(event.target===this) closeCatModal()">
+  <div class="cat-modal">
+    <div class="cat-modal-head">
+      <div class="cat-icon" id="catModalIcon">🛒</div>
+      <div>
+        <h3 id="catModalTitle">Category</h3>
+        <p id="catModalSub">—</p>
+      </div>
+      <button class="cat-modal-close" onclick="closeCatModal()">✕</button>
+    </div>
+    <div class="cat-modal-body">
+      <div class="cat-modal-stat">
+        <div><label>Total Spent</label><span id="catModalTotal">₹ 0</span></div>
+        <div><label>Transactions</label><span id="catModalCount">0</span></div>
+      </div>
+      <div class="cat-modal-list" id="catModalList"></div>
+    </div>
+  </div>
 </div>
 
 <input type="file" id="fileInput" accept=".json" style="display:none">
@@ -1261,14 +1309,52 @@ function renderBreakdown(){
   box.innerHTML = sorted.map(([cat, amt])=>{
     const c = CATEGORIES.find(x=>x.id===cat) || {icon:'📦', label:cat, color:'#8e8e93'};
     const pct = (amt/total*100);
-    return `<div style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px">
-      <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700"><span style="width:28px;height:28px;border-radius:8px;background:${c.color};color:#fff;display:grid;place-items:center;font-size:14px">${c.icon}</span> ${c.label}</div>
+    return `<div onclick="openCatModal('${cat}')" style="background:var(--card2);border:1px solid var(--border);border-radius:12px;padding:12px;cursor:pointer;transition:.15s" onmouseover="this.style.borderColor='${c.color}40';this.style.transform='translateY(-1px)'" onmouseout="this.style.borderColor='var(--border)';this.style.transform='none'">
+      <div style="display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700"><span style="width:28px;height:28px;border-radius:8px;background:${c.color};color:#fff;display:grid;place-items:center;font-size:14px">${c.icon}</span> ${c.label} <span style="margin-left:auto;font-size:10px;color:var(--muted);font-weight:600">tap →</span></div>
       <div style="font-size:18px;font-weight:800;margin-top:8px">${fmt(amt)}</div>
       <div style="font-size:11px;color:var(--muted)">${pct.toFixed(1)}% of spending</div>
       <div style="height:6px;background:#eee;border-radius:999px;overflow:hidden;margin-top:8px"><i style="display:block;height:100%;width:${pct}%;background:${c.color};border-radius:999px"></i></div>
     </div>`;
   }).join('');
 }
+function openCatModal(catId){
+  const mk=$('#monthPicker').value;
+  const data=getMonthData(mk);
+  const cat=CATEGORIES.find(c=>c.id===catId)||{icon:'📦', label:catId, color:'#8e8e93'};
+  const items=data.expenses.filter(e=>e.category===catId).sort((a,b)=> b.date.localeCompare(a.date));
+  const total=items.reduce((s,e)=>s+e.amount,0);
+  document.getElementById('catModalIcon').textContent=cat.icon;
+  document.getElementById('catModalIcon').style.background=cat.color;
+  document.getElementById('catModalIcon').style.color='#fff';
+  document.getElementById('catModalTitle').textContent=cat.label;
+  document.getElementById('catModalSub').textContent=fmt(total)+' • '+items.length+' transaction'+(items.length!==1?'s':'')+' • '+new Date(mk+'-01T00:00:00').toLocaleDateString('en-IN',{month:'long', year:'numeric'});
+  document.getElementById('catModalTotal').textContent=fmt(total);
+  document.getElementById('catModalCount').textContent=String(items.length);
+  const list=document.getElementById('catModalList');
+  if(items.length===0){
+    list.innerHTML='<div class="hint" style="text-align:center;padding:20px">No expenses in this category</div>';
+  } else {
+    list.innerHTML=items.map(e=>{
+      const payClass=e.pay==='Online'?'online':e.pay==='Cash'?'cash':e.pay==='Card'?'card':'upi';
+      const noteHtml=e.note ? `<div class="note">📝 ${e.note.replace(/</g,'&lt;')}</div>` : `<div class="hint" style="font-size:11px;margin-top:4px">No note</div>`;
+      return `<div class="cat-modal-item">
+        <div class="meta">
+          <div>${fmtDate(e.date)} <span class="badge ${payClass}" style="margin-left:6px;font-size:10px;padding:3px 7px">${e.pay}</span></div>
+          <small>${fmt(e.amount)}</small>
+          ${noteHtml}
+        </div>
+        <div class="amt">${fmt(e.amount)}</div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('catModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeCatModal(){
+  document.getElementById('catModal').classList.remove('open');
+  document.body.style.overflow='';
+}
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeCatModal(); });
 
 let catChart, dailyChart;
 function renderCharts(){
